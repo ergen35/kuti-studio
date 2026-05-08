@@ -14,3 +14,4 @@ dist/
 .env
 .env.*
 .python-version
+!.env.example

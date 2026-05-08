@@ -422,6 +422,112 @@ a {
   gap: 1.25rem;
 }
 
+.generation-page {
+  gap: 1.25rem;
+}
+
+.generation-hero {
+  margin-bottom: 0;
+}
+
+.generation-hero-card {
+  align-content: start;
+}
+
+.generation-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.generation-source-list,
+.generation-job-list,
+.generation-step-list,
+.generation-board-strip {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.generation-source-item,
+.generation-job-item,
+.generation-panel-item {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.58);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.generation-source-item.is-selected,
+.generation-job-item.is-selected,
+.generation-panel-item.is-selected {
+  border-color: rgba(140, 90, 43, 0.5);
+  background: rgba(255, 250, 242, 0.92);
+}
+
+.generation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.generation-tabs {
+  margin-bottom: 0.75rem;
+}
+
+.generation-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.generation-preview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 1rem;
+}
+
+.generation-preview-frame {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  min-height: 480px;
+}
+
+.generation-preview-frame img,
+.generation-panel-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.generation-panel-preview {
+  height: 180px;
+  border-radius: calc(var(--radius-lg) - 6px);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--border);
+}
+
+.generation-detail {
+  gap: 1rem;
+}
+
+.generation-board-strip {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .export-hero {
   margin-bottom: 0;
 }
@@ -866,6 +972,7 @@ select:focus {
   }
 
   .character-layout,
+  .generation-layout,
   .export-layout,
   .warning-layout,
   .version-layout,
@@ -875,6 +982,9 @@ select:focus {
   .story-layout,
   .story-columns,
   .story-summary-grid,
+  .generation-summary-grid,
+  .generation-board-strip,
+  .generation-preview-grid,
   .version-summary-grid,
   .warning-summary-grid,
   .warning-summary-grid-foot,

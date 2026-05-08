@@ -653,6 +653,163 @@ def test_export_workflow_generates_artifacts(tmp_path: Path, monkeypatch) -> Non
     assert zip_download.headers["content-type"] == "application/zip"
 
 
+def test_generation_studio_creates_board_and_panels(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    monkeypatch.setenv("KUTI_GPT_IMAGES_2_BASE_URL", "https://example.invalid/images")
+    monkeypatch.setenv("KUTI_GPT_IMAGES_2_API_KEY", "test-key")
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    models = client.get("/api/models")
+    assert models.status_code == 200
+    image_models = [item for item in models.json() if item["kind"] == "image"]
+    assert any(item["key"] == "gpt_images_2" and item["configured"] for item in image_models)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Generation House", "settings_json": {"locations_json": ["Studio"]}},
+    ).json()
+    project_id = project["id"]
+
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Tome One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    scene = client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={
+            "tome_id": tome["id"],
+            "chapter_id": chapter["id"],
+            "title": "Scene One",
+            "content": "Ari arrives at the studio.",
+        },
+    ).json()
+
+    version = client.post(
+        f"/api/projects/{project_id}/versions",
+        json={"branch_name": "main", "label": "Source checkpoint", "summary": "Capture before generation"},
+    ).json()
+
+    job_response = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "scene",
+            "source_id": scene["id"],
+            "source_version_id": version["id"],
+            "strategy": "intermediate",
+            "model_key": "gpt_images_2",
+            "title": "Scene board",
+            "summary": "Build a board from the opening scene.",
+        },
+    )
+    assert job_response.status_code == 201
+    job = job_response.json()
+    assert job["status"] == "ready"
+    assert job["progress"] == 100
+    assert job["model_key"] == "gpt_images_2"
+    assert job["model_name"] == "GPT Images 2"
+    assert len(job["steps"]) >= 1
+    assert job["board"]["panels"]
+
+    jobs = client.get(f"/api/projects/{project_id}/generation/jobs")
+    assert jobs.status_code == 200
+    assert len(jobs.json()) == 1
+
+    board_id = job["board"]["id"]
+    panel_id = job["board"]["panels"][0]["id"]
+
+    board = client.get(f"/api/projects/{project_id}/generation/boards/{board_id}")
+    assert board.status_code == 200
+    assert board.json()["status"] == "draft"
+
+    download = client.get(f"/api/projects/{project_id}/generation/boards/{board_id}/download")
+    assert download.status_code == 200
+    assert download.headers["content-type"] == "application/json"
+
+    image = client.get(f"/api/projects/{project_id}/generation/boards/{board_id}/panels/{panel_id}/image")
+    assert image.status_code == 200
+    assert image.headers["content-type"].startswith("image/svg+xml")
+
+    panel_update = client.patch(
+        f"/api/projects/{project_id}/generation/boards/{board_id}/panels/{panel_id}",
+        json={"status": "selected", "caption": "Chosen panel"},
+    )
+    assert panel_update.status_code == 200
+    assert panel_update.json()["status"] == "selected"
+
+    validated = client.post(
+        f"/api/projects/{project_id}/generation/boards/{board_id}/validate",
+        json={"note": "Approved for local review."},
+    )
+    assert validated.status_code == 200
+    assert validated.json()["status"] == "validated"
+
+    refreshed_job = client.get(f"/api/projects/{project_id}/generation/jobs/{job['id']}")
+    assert refreshed_job.status_code == 200
+    assert refreshed_job.json()["board"]["status"] == "validated"
+
+
+def test_generation_job_requires_configured_image_model(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    for key in (
+        "KUTI_SORA_2_BASE_URL",
+        "KUTI_SORA_2_API_KEY",
+        "KUTI_SEEDANCE_2_BASE_URL",
+        "KUTI_SEEDANCE_2_API_KEY",
+        "KUTI_GPT_IMAGES_1_5_BASE_URL",
+        "KUTI_GPT_IMAGES_1_5_API_KEY",
+        "KUTI_GPT_IMAGES_2_BASE_URL",
+        "KUTI_GPT_IMAGES_2_API_KEY",
+        "KUTI_ELEVEN_LABS_BASE_URL",
+        "KUTI_ELEVEN_LABS_API_KEY",
+    ):
+        monkeypatch.setenv(key, "")
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    models = client.get("/api/models")
+    assert models.status_code == 200
+    image_models = [item for item in models.json() if item["kind"] == "image"]
+    assert image_models
+    assert all(not item["configured"] for item in image_models)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Generation House", "settings_json": {"locations_json": ["Studio"]}},
+    ).json()
+    project_id = project["id"]
+
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Tome One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    scene = client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={
+            "tome_id": tome["id"],
+            "chapter_id": chapter["id"],
+            "title": "Scene One",
+            "content": "Ari arrives at the studio.",
+        },
+    ).json()
+
+    response = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "scene",
+            "source_id": scene["id"],
+            "strategy": "direct",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "model_not_configured"
+
+
 def test_character_routes_require_existing_project(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
     get_settings.cache_clear()

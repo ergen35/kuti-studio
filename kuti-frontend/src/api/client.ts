@@ -432,6 +432,127 @@ export type WarningScanResponse = {
   items: WarningRead[];
 };
 
+export type GenerationSourceKind = "scene" | "chapter" | "tome";
+
+export type GenerationStrategy = "direct" | "intermediate";
+
+export type GenerationJobStatus = "pending" | "running" | "ready" | "validated" | "failed";
+
+export type GenerationStepStatus = "pending" | "running" | "ready" | "failed";
+
+export type GenerationBoardStatus = "draft" | "validated";
+
+export type GenerationPanelStatus = "draft" | "selected" | "rejected" | "replaced";
+
+export type ModelProviderRead = {
+  key: string;
+  kind: string;
+  display_name: string;
+  base_url: string | null;
+  enabled: boolean;
+  configured: boolean;
+  has_api_key: boolean;
+};
+
+export type GenerationJobStepRead = {
+  id: string;
+  job_id: string;
+  order_index: number;
+  title: string;
+  status: GenerationStepStatus;
+  prompt: string;
+  output_text: string;
+  artifact_path: string | null;
+  artifact_name: string | null;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  failed_at: string | null;
+  error_message: string | null;
+};
+
+export type GenerationBoardPanelRead = {
+  id: string;
+  board_id: string;
+  step_id: string | null;
+  order_index: number;
+  title: string;
+  caption: string;
+  prompt: string;
+  status: GenerationPanelStatus;
+  image_path: string;
+  image_name: string;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GenerationBoardRead = {
+  id: string;
+  project_id: string;
+  job_id: string;
+  source_kind: GenerationSourceKind;
+  strategy: GenerationStrategy;
+  title: string;
+  summary: string;
+  status: GenerationBoardStatus;
+  artifact_path: string | null;
+  artifact_name: string | null;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  validated_at: string | null;
+  panels: GenerationBoardPanelRead[];
+};
+
+export type GenerationJobRead = {
+  id: string;
+  project_id: string;
+  source_kind: GenerationSourceKind;
+  source_id: string;
+  source_label: string;
+  source_version_id: string | null;
+  strategy: GenerationStrategy;
+  model_key: string | null;
+  model_name: string | null;
+  model_kind: string | null;
+  entrypoint: string;
+  title: string;
+  prompt: string;
+  summary: string;
+  status: GenerationJobStatus;
+  progress: number;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  failed_at: string | null;
+  error_message: string | null;
+  steps: GenerationJobStepRead[];
+  board: GenerationBoardRead | null;
+};
+
+export type GenerationJobCreateInput = {
+  source_kind: GenerationSourceKind;
+  source_id: string;
+  source_version_id?: string | null;
+  strategy?: GenerationStrategy;
+  model_key?: string | null;
+  title?: string | null;
+  summary?: string;
+};
+
+export type GenerationBoardValidateInput = {
+  note?: string | null;
+};
+
+export type GenerationPanelUpdateInput = {
+  status?: GenerationPanelStatus | null;
+  caption?: string | null;
+  title?: string | null;
+};
+
 const apiBaseUrl = import.meta.env.VITE_KUTI_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string): Promise<T> {
@@ -487,6 +608,10 @@ export function getConfig() {
 
 export function getHealth() {
   return request<KutiHealth>("/api/health");
+}
+
+export function listModels() {
+  return request<ModelProviderRead[]>("/api/models");
 }
 
 export function listProjects() {
@@ -801,4 +926,49 @@ export function updateWarning(projectId: string, warningId: string, payload: War
     method: "PATCH",
     body: JSON.stringify(payload),
   });
+}
+
+export function listGenerationJobs(projectId: string) {
+  return request<GenerationJobRead[]>(`/api/projects/${projectId}/generation/jobs`);
+}
+
+export function createGenerationJob(projectId: string, payload: GenerationJobCreateInput) {
+  return requestJson<GenerationJobRead>(`/api/projects/${projectId}/generation/jobs`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getGenerationJob(projectId: string, jobId: string) {
+  return request<GenerationJobRead>(`/api/projects/${projectId}/generation/jobs/${jobId}`);
+}
+
+export function listGenerationBoards(projectId: string) {
+  return request<GenerationBoardRead[]>(`/api/projects/${projectId}/generation/boards`);
+}
+
+export function getGenerationBoard(projectId: string, boardId: string) {
+  return request<GenerationBoardRead>(`/api/projects/${projectId}/generation/boards/${boardId}`);
+}
+
+export function validateGenerationBoard(projectId: string, boardId: string, payload?: GenerationBoardValidateInput) {
+  return requestJson<GenerationBoardRead>(`/api/projects/${projectId}/generation/boards/${boardId}/validate`, {
+    method: "POST",
+    body: JSON.stringify(payload ?? {}),
+  });
+}
+
+export function updateGenerationPanel(projectId: string, boardId: string, panelId: string, payload: GenerationPanelUpdateInput) {
+  return requestJson<GenerationBoardPanelRead>(`/api/projects/${projectId}/generation/boards/${boardId}/panels/${panelId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function generationBoardDownloadUrl(projectId: string, boardId: string) {
+  return `${apiBaseUrl}/api/projects/${projectId}/generation/boards/${boardId}/download`;
+}
+
+export function generationPanelImageUrl(projectId: string, boardId: string, panelId: string) {
+  return `${apiBaseUrl}/api/projects/${projectId}/generation/boards/${boardId}/panels/${panelId}/image`;
 }

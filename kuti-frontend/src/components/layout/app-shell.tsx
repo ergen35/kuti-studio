@@ -28,6 +28,9 @@ export function AppShell() {
           <Link to="/projects/demo-project/assets" className="nav-link">
             Assets Library
           </Link>
+          <Link to="/projects/demo-project/generation" className="nav-link">
+            Generation Studio
+          </Link>
           <Link to="/projects/demo-project/exports" className="nav-link">
             Exports
           </Link>
