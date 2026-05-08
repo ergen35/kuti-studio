@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from kuti_backend.core.database import get_session
 from kuti_backend.core.settings import Settings, get_settings
+from kuti_backend.api.errors import EXPORT_ARTIFACT_NOT_AVAILABLE, EXPORT_ARTIFACT_NOT_FOUND, EXPORT_NOT_FOUND, PROJECT_NOT_FOUND, raise_api_error
 from kuti_backend.exports.models import ExportFormat, ExportKind, ExportStatus
 from kuti_backend.exports.repository import create_export, get_export, list_exports
 from kuti_backend.exports.schemas import ExportCreate, ExportRead
@@ -25,14 +26,14 @@ def _settings(request: Request) -> Settings:
 def _project_or_404(session: Session, project_id: str):
     project = get_project_record(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return project
 
 
 def _export_or_404(session: Session, project_id: str, export_id: str):
     export = get_export(session, project_id, export_id)
     if export is None:
-        raise HTTPException(status_code=404, detail="Export not found")
+        raise_api_error(404, EXPORT_NOT_FOUND)
     return export
 
 
@@ -69,11 +70,11 @@ def download_export(session: SessionDep, project_id: str, export_id: str) -> Fil
     _project_or_404(session, project_id)
     export = _export_or_404(session, project_id, export_id)
     if not export.artifact_path:
-        raise HTTPException(status_code=404, detail="Export artifact not available")
+        raise_api_error(404, EXPORT_ARTIFACT_NOT_AVAILABLE)
 
     artifact = Path(export.artifact_path)
     if not artifact.exists():
-        raise HTTPException(status_code=404, detail="Export artifact not found")
+        raise_api_error(404, EXPORT_ARTIFACT_NOT_FOUND)
 
     if artifact.is_dir():
         zip_path = artifact.with_suffix(".zip")
@@ -87,7 +88,7 @@ def download_export(session: SessionDep, project_id: str, export_id: str) -> Fil
         return FileResponse(zip_path, media_type="application/zip", filename=zip_path.name)
 
     if not artifact.is_file():
-        raise HTTPException(status_code=404, detail="Export artifact not found")
+        raise_api_error(404, EXPORT_ARTIFACT_NOT_FOUND)
 
     media_type = "application/zip" if artifact.suffix == ".zip" else "application/json"
     return FileResponse(

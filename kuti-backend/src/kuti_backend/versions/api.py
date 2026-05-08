@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from kuti_backend.core.database import get_session
+from kuti_backend.api.errors import PROJECT_NOT_FOUND, VERSION_NOT_FOUND, raise_api_error
 from kuti_backend.projects.repository import get_project as get_project_record
 from kuti_backend.versions.repository import (
     compare_versions,
@@ -31,14 +32,14 @@ SessionDep = Annotated[Session, Depends(get_session)]
 def _project_or_404(session: Session, project_id: str):
     project = get_project_record(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return project
 
 
 def _version_or_404(session: Session, project_id: str, version_id: str):
     version = get_version(session, project_id, version_id)
     if version is None:
-        raise HTTPException(status_code=404, detail="Version not found")
+        raise_api_error(404, VERSION_NOT_FOUND)
     return version
 
 
@@ -59,7 +60,10 @@ def create_version_route(session: SessionDep, project_id: str, payload: VersionC
     try:
         return create_version(session, project_id, payload)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        message = str(exc)
+        if message == "project_not_found":
+            raise_api_error(404, PROJECT_NOT_FOUND)
+        raise_api_error(404, VERSION_NOT_FOUND)
 
 
 @router.get("/projects/{project_id}/versions/{version_id}", response_model=VersionRead)
@@ -74,7 +78,7 @@ def compare_versions_route(session: SessionDep, project_id: str, payload: Versio
     try:
         return compare_versions(session, project_id, payload.left_version_id, payload.right_version_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise_api_error(404, VERSION_NOT_FOUND)
 
 
 @router.post("/projects/{project_id}/versions/{version_id}/restore", response_model=VersionRead, status_code=status.HTTP_201_CREATED)
@@ -96,4 +100,4 @@ def restore_version_route(
         )
         return VersionRead.model_validate(restored)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise_api_error(404, VERSION_NOT_FOUND)

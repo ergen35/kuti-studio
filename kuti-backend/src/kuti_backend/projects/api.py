@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from kuti_backend.core.database import get_session
 from kuti_backend.core.settings import Settings, get_settings
+from kuti_backend.api.errors import PROJECT_NOT_FOUND, raise_api_error
 from kuti_backend.projects.repository import (
     archive_project,
     clone_project,
@@ -51,7 +52,7 @@ def create_project_route(request: Request, session: SessionDep, payload: Project
 def read_project(request: Request, session: SessionDep, project_id: str) -> ProjectRead:
     project = get_project(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return project
 
 
@@ -59,7 +60,7 @@ def read_project(request: Request, session: SessionDep, project_id: str) -> Proj
 def patch_project(request: Request, session: SessionDep, project_id: str, payload: ProjectUpdate) -> ProjectRead:
     project = get_project(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     updated = update_project(session, current_settings(request), project, payload)
     rebuild_warnings(session, project_id)
     return updated
@@ -69,7 +70,7 @@ def patch_project(request: Request, session: SessionDep, project_id: str, payloa
 def archive_project_route(request: Request, session: SessionDep, project_id: str) -> ProjectRead:
     project = get_project(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return archive_project(session, current_settings(request), project)
 
 
@@ -82,7 +83,7 @@ def clone_project_route(
 ) -> ProjectRead:
     project = get_project(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return clone_project(session, current_settings(request), project, payload)
 
 
@@ -90,7 +91,7 @@ def clone_project_route(
 def open_project_route(request: Request, session: SessionDep, project_id: str) -> ProjectRead:
     project = get_project(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return open_project(session, current_settings(request), project)
 
 
@@ -98,5 +99,5 @@ def open_project_route(request: Request, session: SessionDep, project_id: str) -
 def export_project_route(session: SessionDep, project_id: str) -> dict[str, object]:
     project = get_project(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return export_project(project)

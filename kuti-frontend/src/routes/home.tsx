@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  ApiError,
   archiveProject,
   cloneProject,
   createProject,
@@ -11,7 +12,7 @@ import {
   type ProjectRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
-import { useT } from "@/lib/i18n";
+import { formatApiError, useLocale, useT } from "@/lib/i18n";
 import { getConfig, getHealth } from "@/api/client";
 import { Link } from "react-router-dom";
 
@@ -63,6 +64,7 @@ function ProjectRow({ project }: { project: ProjectRead }) {
 
 export function HomeRoute() {
   const queryClient = useQueryClient();
+  const locale = useLocale();
   const t = useT();
   const configQuery = useQuery({ queryKey: ["config"], queryFn: getConfig });
   const healthQuery = useQuery({ queryKey: ["health"], queryFn: getHealth });
@@ -109,7 +111,7 @@ export function HomeRoute() {
           <h4>{healthQuery.data?.status ?? "checking..."}</h4>
           <p className="muted">
             {healthQuery.isError
-              ? "Backend not reachable yet. Start kuti-backend on port 8000."
+              ? formatApiError(locale, healthQuery.error as ApiError)
               : healthQuery.data
                 ? `${healthQuery.data.service} v${healthQuery.data.version}`
                 : "Querying the local API..."}

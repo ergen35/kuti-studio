@@ -29,6 +29,15 @@ from kuti_backend.assets.schemas import (
     AssetRead,
     AssetUpdate,
 )
+from kuti_backend.api.errors import (
+    ASSET_ID_MUST_MATCH_ROUTE_ASSET,
+    ASSET_LINK_NOT_FOUND,
+    ASSET_LINK_TARGET_NOT_FOUND,
+    ASSET_NOT_FOUND,
+    ASSET_SOURCE_MISSING,
+    PROJECT_NOT_FOUND,
+    raise_api_error,
+)
 from kuti_backend.core.database import get_session
 from kuti_backend.core.settings import Settings, get_settings
 from kuti_backend.projects.repository import get_project as get_project_record
@@ -44,21 +53,21 @@ def _settings(request):
 def _project_or_404(session: Session, project_id: str):
     project = get_project_record(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return project
 
 
 def _asset_or_404(session: Session, project_id: str, asset_id: str):
     asset = get_asset(session, project_id, asset_id)
     if asset is None:
-        raise HTTPException(status_code=404, detail="Asset not found")
+        raise_api_error(404, ASSET_NOT_FOUND)
     return asset
 
 
 def _link_or_404(session: Session, project_id: str, link_id: str):
     link = session.get(AssetLink, link_id)
     if link is None or link.project_id != project_id:
-        raise HTTPException(status_code=404, detail="Asset link not found")
+        raise_api_error(404, ASSET_LINK_NOT_FOUND)
     return link
 
 
@@ -75,7 +84,9 @@ def import_asset_route(request: Request, session: SessionDep, project_id: str, p
         return import_asset(session, _settings(request), project_id, payload)
     except ValueError as exc:
         message = str(exc)
-        raise HTTPException(status_code=404 if message == "asset_source_missing" else 409, detail=message) from exc
+        if message == ASSET_SOURCE_MISSING:
+            raise_api_error(404, ASSET_SOURCE_MISSING)
+        raise HTTPException(status_code=409, detail=message) from exc
 
 
 @router.get("/projects/{project_id}/assets/{asset_id}", response_model=AssetDetail)
@@ -128,13 +139,15 @@ def create_asset_link_route(session: SessionDep, project_id: str, asset_id: str,
     _project_or_404(session, project_id)
     _asset_or_404(session, project_id, asset_id)
     if payload.asset_id != asset_id:
-        raise HTTPException(status_code=400, detail="asset_id must match route asset")
+        raise_api_error(400, ASSET_ID_MUST_MATCH_ROUTE_ASSET)
     try:
         return create_asset_link(session, project_id, payload)
     except ValueError as exc:
         message = str(exc)
-        if message in {"asset_not_found", "asset_link_target_not_found"}:
-            raise HTTPException(status_code=404, detail=message) from exc
+        if message == "asset_not_found":
+            raise_api_error(404, ASSET_NOT_FOUND)
+        if message == "asset_link_target_not_found":
+            raise_api_error(404, ASSET_LINK_TARGET_NOT_FOUND)
         raise HTTPException(status_code=409, detail=message) from exc
 
 
@@ -143,5 +156,5 @@ def delete_asset_link_route(session: SessionDep, project_id: str, asset_id: str,
     _project_or_404(session, project_id)
     link = _link_or_404(session, project_id, link_id)
     if link.asset_id != asset_id:
-        raise HTTPException(status_code=404, detail="Asset link not found")
+        raise_api_error(404, ASSET_LINK_NOT_FOUND)
     delete_asset_link(session, link)

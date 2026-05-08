@@ -36,6 +36,17 @@ from kuti_backend.characters.schemas import (
     VoiceSampleCreate,
     VoiceSampleRead,
 )
+from kuti_backend.api.errors import (
+    CHARACTER_NAME_CONFLICT,
+    CHARACTER_NOT_FOUND,
+    PROJECT_NOT_FOUND,
+    RELATION_CONFLICT,
+    RELATION_MISSING_CHARACTER,
+    RELATION_NOT_FOUND,
+    RELATION_SELF_REFERENCE,
+    SOURCE_CHARACTER_ID_MUST_MATCH_ROUTE_CHARACTER,
+    raise_api_error,
+)
 
 router = APIRouter()
 SessionDep = Annotated[Session, Depends(get_session)]
@@ -44,14 +55,14 @@ SessionDep = Annotated[Session, Depends(get_session)]
 def _project_or_404(session: Session, project_id: str):
     project = get_project_record(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return project
 
 
 def _character_or_404(session: Session, project_id: str, character_id: str):
     character = get_character(session, project_id, character_id)
     if character is None:
-        raise HTTPException(status_code=404, detail="Character not found")
+        raise_api_error(404, CHARACTER_NOT_FOUND)
     return character
 
 
@@ -69,7 +80,10 @@ def create_character_route(session: SessionDep, project_id: str, payload: Charac
         rebuild_warnings(session, project_id)
         return character
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        message = str(exc)
+        if message == "character_name_conflict":
+            raise_api_error(409, CHARACTER_NAME_CONFLICT)
+        raise HTTPException(status_code=409, detail=message) from exc
 
 
 @router.get("/projects/{project_id}/characters/{character_id}", response_model=CharacterDetail)
@@ -94,7 +108,10 @@ def update_character_route(session: SessionDep, project_id: str, character_id: s
         rebuild_warnings(session, project_id)
         return updated
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        message = str(exc)
+        if message == "character_name_conflict":
+            raise_api_error(409, CHARACTER_NAME_CONFLICT)
+        raise HTTPException(status_code=409, detail=message) from exc
 
 
 @router.post("/projects/{project_id}/characters/{character_id}/duplicate", response_model=CharacterRead, status_code=status.HTTP_201_CREATED)
@@ -106,7 +123,10 @@ def duplicate_character_route(session: SessionDep, project_id: str, character_id
         rebuild_warnings(session, project_id)
         return duplicate
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        message = str(exc)
+        if message == "character_name_conflict":
+            raise_api_error(409, CHARACTER_NAME_CONFLICT)
+        raise HTTPException(status_code=409, detail=message) from exc
 
 
 @router.post("/projects/{project_id}/characters/{character_id}/archive", response_model=CharacterRead)
@@ -130,13 +150,20 @@ def delete_character_route(session: SessionDep, project_id: str, character_id: s
 def create_relation_route(session: SessionDep, project_id: str, character_id: str, payload: CharacterRelationCreate) -> CharacterRelationRead:
     _project_or_404(session, project_id)
     if payload.source_character_id != character_id:
-        raise HTTPException(status_code=400, detail="source_character_id must match route character")
+        raise_api_error(400, SOURCE_CHARACTER_ID_MUST_MATCH_ROUTE_CHARACTER)
     try:
         relation = create_relation(session, project_id, payload)
         rebuild_warnings(session, project_id)
         return relation
     except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        message = str(exc)
+        if message == "relation_self_reference":
+            raise_api_error(409, RELATION_SELF_REFERENCE)
+        if message == "relation_missing_character":
+            raise_api_error(404, RELATION_MISSING_CHARACTER)
+        if message == "relation_conflict":
+            raise_api_error(409, RELATION_CONFLICT)
+        raise HTTPException(status_code=409, detail=message) from exc
 
 
 @router.patch("/projects/{project_id}/characters/{character_id}/relations/{relation_id}", response_model=CharacterRelationRead)
@@ -150,7 +177,7 @@ def update_relation_route(session: SessionDep, project_id: str, character_id: st
         or relation.project_id != project_id
         or character_id not in {relation.source_character_id, relation.target_character_id}
     ):
-        raise HTTPException(status_code=404, detail="Relation not found")
+        raise_api_error(404, RELATION_NOT_FOUND)
     updated = update_relation(session, relation, payload)
     rebuild_warnings(session, project_id)
     return updated
@@ -167,7 +194,7 @@ def delete_relation_route(session: SessionDep, project_id: str, character_id: st
         or relation.project_id != project_id
         or character_id not in {relation.source_character_id, relation.target_character_id}
     ):
-        raise HTTPException(status_code=404, detail="Relation not found")
+        raise_api_error(404, RELATION_NOT_FOUND)
     delete_relation(session, relation)
     rebuild_warnings(session, project_id)
 

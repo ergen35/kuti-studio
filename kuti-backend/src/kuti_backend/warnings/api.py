@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from kuti_backend.core.database import get_session
+from kuti_backend.api.errors import PROJECT_NOT_FOUND, WARNING_NOT_FOUND, raise_api_error
 from kuti_backend.projects.repository import get_project as get_project_record
 from kuti_backend.warnings.repository import get_warning, list_warnings, rebuild_warnings, update_warning
 from kuti_backend.warnings.schemas import WarningKind, WarningRead, WarningScanResponse, WarningSeverity, WarningStatus, WarningUpdate
@@ -17,14 +18,14 @@ SessionDep = Annotated[Session, Depends(get_session)]
 def _project_or_404(session: Session, project_id: str):
     project = get_project_record(session, project_id)
     if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise_api_error(404, PROJECT_NOT_FOUND)
     return project
 
 
 def _warning_or_404(session: Session, project_id: str, warning_id: str):
     warning = get_warning(session, project_id, warning_id)
     if warning is None:
-        raise HTTPException(status_code=404, detail="Warning not found")
+        raise_api_error(404, WARNING_NOT_FOUND)
     return warning
 
 

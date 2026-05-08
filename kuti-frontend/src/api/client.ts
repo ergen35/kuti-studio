@@ -562,6 +562,31 @@ export type GenerationPanelUpdateInput = {
 
 const apiBaseUrl = import.meta.env.VITE_KUTI_API_URL ?? "http://localhost:8000";
 
+export class ApiError extends Error {
+  code: string;
+  status: number;
+
+  constructor(code: string, status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+async function readApiError(response: Response): Promise<ApiError> {
+  try {
+    const payload = (await response.json()) as { detail?: unknown };
+    if (typeof payload.detail === "string" && payload.detail.trim()) {
+      return new ApiError(payload.detail, response.status, payload.detail);
+    }
+  } catch {
+    // fall through to status-based error
+  }
+
+  return new ApiError(`http_${response.status}`, response.status, `Request failed: ${response.status}`);
+}
+
 async function request<T>(path: string): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: "GET",
@@ -571,7 +596,7 @@ async function request<T>(path: string): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw await readApiError(response);
   }
 
   return response.json() as Promise<T>;
@@ -588,7 +613,7 @@ async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw await readApiError(response);
   }
 
   return response.json() as Promise<T>;
@@ -605,7 +630,7 @@ async function requestVoid(path: string, init: RequestInit): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw await readApiError(response);
   }
 }
 
