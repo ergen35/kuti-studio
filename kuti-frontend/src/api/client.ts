@@ -57,6 +57,7 @@ export type CharacterStatus = "active" | "draft" | "archived";
 export type CharacterRead = {
   id: string;
   project_id: string;
+  slug: string;
   name: string;
   alias: string | null;
   narrative_role: string | null;
@@ -148,6 +149,121 @@ export type VoiceSampleCreateInput = {
   label: string;
   asset_path?: string | null;
   voice_notes?: string;
+};
+
+export type StoryStatus = "active" | "draft" | "archived";
+
+export type TomeRead = {
+  id: string;
+  project_id: string;
+  title: string;
+  slug: string;
+  synopsis: string;
+  status: StoryStatus;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TomeCreateInput = {
+  title: string;
+  slug?: string | null;
+  synopsis?: string;
+  status?: StoryStatus;
+  order_index?: number;
+};
+
+export type TomeUpdateInput = Partial<TomeCreateInput>;
+
+export type ChapterRead = {
+  id: string;
+  project_id: string;
+  tome_id: string;
+  title: string;
+  slug: string;
+  synopsis: string;
+  status: StoryStatus;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChapterCreateInput = {
+  tome_id: string;
+  title: string;
+  slug?: string | null;
+  synopsis?: string;
+  status?: StoryStatus;
+  order_index?: number;
+};
+
+export type ChapterUpdateInput = Partial<ChapterCreateInput>;
+
+export type SceneRead = {
+  id: string;
+  project_id: string;
+  tome_id: string;
+  chapter_id: string;
+  title: string;
+  slug: string;
+  scene_type: string;
+  location: string;
+  summary: string;
+  content: string;
+  notes: string;
+  characters_json: string[];
+  tags_json: string[];
+  status: StoryStatus;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SceneCreateInput = {
+  tome_id: string;
+  chapter_id: string;
+  title: string;
+  slug?: string | null;
+  scene_type?: string;
+  location?: string;
+  summary?: string;
+  content?: string;
+  notes?: string;
+  characters_json?: string[];
+  tags_json?: string[];
+  status?: StoryStatus;
+  order_index?: number;
+};
+
+export type SceneUpdateInput = Partial<SceneCreateInput>;
+
+export type StoryReferenceRead = {
+  id: string;
+  project_id: string;
+  scene_id: string;
+  reference_kind: string;
+  target_slug: string;
+  raw_token: string;
+  created_at: string;
+};
+
+export type StorySuggestionRead = {
+  kind: string;
+  slug: string;
+  title: string;
+  label: string;
+};
+
+export type StoryOrphanReferenceRead = {
+  reference: StoryReferenceRead;
+  reason: string;
+};
+
+export type StorySummaryResponse = {
+  tomes: TomeRead[];
+  chapters: ChapterRead[];
+  scenes: SceneRead[];
+  orphan_references: StoryOrphanReferenceRead[];
 };
 
 const apiBaseUrl = import.meta.env.VITE_KUTI_API_URL ?? "http://localhost:8000";
@@ -326,4 +442,72 @@ export function createVoiceSample(projectId: string, characterId: string, payloa
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function getStory(projectId: string) {
+  return request<StorySummaryResponse>(`/api/projects/${projectId}/story`);
+}
+
+export function listStorySuggestions(projectId: string, query?: string) {
+  const suffix = query ? `?query=${encodeURIComponent(query)}` : "";
+  return request<StorySuggestionRead[]>(`/api/projects/${projectId}/story/suggestions${suffix}`);
+}
+
+export function createTome(projectId: string, payload: TomeCreateInput) {
+  return requestJson<TomeRead>(`/api/projects/${projectId}/story/tomes`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateTome(projectId: string, tomeId: string, payload: TomeUpdateInput) {
+  return requestJson<TomeRead>(`/api/projects/${projectId}/story/tomes/${tomeId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteTome(projectId: string, tomeId: string) {
+  return requestVoid(`/api/projects/${projectId}/story/tomes/${tomeId}`, { method: "DELETE" });
+}
+
+export function createChapter(projectId: string, payload: ChapterCreateInput) {
+  return requestJson<ChapterRead>(`/api/projects/${projectId}/story/chapters`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateChapter(projectId: string, chapterId: string, payload: ChapterUpdateInput) {
+  return requestJson<ChapterRead>(`/api/projects/${projectId}/story/chapters/${chapterId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteChapter(projectId: string, chapterId: string) {
+  return requestVoid(`/api/projects/${projectId}/story/chapters/${chapterId}`, { method: "DELETE" });
+}
+
+export function createScene(projectId: string, payload: SceneCreateInput) {
+  return requestJson<SceneRead>(`/api/projects/${projectId}/story/scenes`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateScene(projectId: string, sceneId: string, payload: SceneUpdateInput) {
+  return requestJson<SceneRead>(`/api/projects/${projectId}/story/scenes/${sceneId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteScene(projectId: string, sceneId: string) {
+  return requestVoid(`/api/projects/${projectId}/story/scenes/${sceneId}`, { method: "DELETE" });
+}
+
+export function listStoryReferences(projectId: string, sceneId?: string) {
+  const suffix = sceneId ? `?scene_id=${encodeURIComponent(sceneId)}` : "";
+  return request<StoryReferenceRead[]>(`/api/projects/${projectId}/story/references${suffix}`);
 }

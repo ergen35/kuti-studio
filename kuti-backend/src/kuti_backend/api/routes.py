@@ -7,10 +7,12 @@ from fastapi import APIRouter, Request
 from kuti_backend.characters.api import router as characters_router
 from kuti_backend.core.settings import get_settings
 from kuti_backend.projects.api import router as projects_router
+from kuti_backend.story.api import router as story_router
 
 router = APIRouter()
 router.include_router(projects_router)
 router.include_router(characters_router)
+router.include_router(story_router)
 
 
 def _settings(request: Request):

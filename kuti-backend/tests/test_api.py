@@ -114,6 +114,24 @@ def test_character_profiles_and_relations(tmp_path: Path, monkeypatch) -> None:
     )
     assert created.status_code == 201
     character = created.json()
+    assert character["slug"] == "jack-vespers"
+
+    slug_collision = client.post(
+        f"/api/projects/{project['id']}/characters",
+        json={
+            "name": "Jack Vespers!",
+            "narrative_role": "supporting",
+        },
+    )
+    assert slug_collision.status_code == 201
+    assert slug_collision.json()["slug"] == "jack-vespers-2"
+
+    renamed = client.patch(
+        f"/api/projects/{project['id']}/characters/{character['id']}",
+        json={"name": "Jack Vesper Renamed"},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["slug"] == "jack-vespers"
 
     detail = client.get(f"/api/projects/{project['id']}/characters/{character['id']}")
     assert detail.status_code == 200
@@ -189,7 +207,92 @@ def test_character_profiles_and_relations(tmp_path: Path, monkeypatch) -> None:
 
     remaining = client.get(f"/api/projects/{project['id']}/characters")
     assert remaining.status_code == 200
-    assert len(remaining.json()["items"]) == 1
+    assert len(remaining.json()["items"]) == 2
+
+
+def test_story_references_use_stable_slugs(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post("/api/projects", json={"name": "Night Harbor"}).json()
+    character = client.post(
+        f"/api/projects/{project['id']}/characters",
+        json={"name": "Mara Vale", "narrative_role": "lead"},
+    ).json()
+
+    tome = client.post(
+        f"/api/projects/{project['id']}/story/tomes",
+        json={"title": "Volume One"},
+    ).json()
+    chapter = client.post(
+        f"/api/projects/{project['id']}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    scene = client.post(
+        f"/api/projects/{project['id']}/story/scenes",
+        json={
+            "tome_id": tome["id"],
+            "chapter_id": chapter["id"],
+            "title": "Dockside Arrival",
+            "content": "Mara steps into frame as @character:mara-vale.",
+        },
+    ).json()
+
+    summary = client.get(f"/api/projects/{project['id']}/story")
+    assert summary.status_code == 200
+    assert summary.json()["orphan_references"] == []
+
+    renamed = client.patch(
+        f"/api/projects/{project['id']}/characters/{character['id']}",
+        json={"name": "Mara Vale Prime"},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["slug"] == "mara-vale"
+
+    references = client.get(f"/api/projects/{project['id']}/story/references", params={"scene_id": scene["id"]})
+    assert references.status_code == 200
+    assert references.json()[0]["target_slug"] == "mara-vale"
+
+    story = client.get(f"/api/projects/{project['id']}/story")
+    assert story.status_code == 200
+    assert story.json()["orphan_references"] == []
+
+
+def test_story_slugs_are_project_unique(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post("/api/projects", json={"name": "Atlas Archive"}).json()
+    tome_a = client.post(f"/api/projects/{project['id']}/story/tomes", json={"title": "Tome A"}).json()
+    tome_b = client.post(f"/api/projects/{project['id']}/story/tomes", json={"title": "Tome B"}).json()
+
+    chapter_a = client.post(
+        f"/api/projects/{project['id']}/story/chapters",
+        json={"tome_id": tome_a["id"], "title": "Prologue"},
+    ).json()
+    chapter_b = client.post(
+        f"/api/projects/{project['id']}/story/chapters",
+        json={"tome_id": tome_b["id"], "title": "Prologue"},
+    ).json()
+
+    assert chapter_a["slug"] == "prologue"
+    assert chapter_b["slug"] == "prologue-2"
+
+    scene_a = client.post(
+        f"/api/projects/{project['id']}/story/scenes",
+        json={"tome_id": tome_a["id"], "chapter_id": chapter_a["id"], "title": "Arrival"},
+    ).json()
+    scene_b = client.post(
+        f"/api/projects/{project['id']}/story/scenes",
+        json={"tome_id": tome_b["id"], "chapter_id": chapter_b["id"], "title": "Arrival"},
+    ).json()
+
+    assert scene_a["slug"] == "arrival"
+    assert scene_b["slug"] == "arrival-2"
 
 
 def test_character_routes_require_existing_project(tmp_path: Path, monkeypatch) -> None:

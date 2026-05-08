@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import re
 from uuid import uuid4
 
 from sqlalchemy import delete, or_, select
@@ -15,6 +16,11 @@ from kuti_backend.characters.schemas import (
     CharacterUpdate,
     VoiceSampleCreate,
 )
+
+
+def slugify(value: str) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip()).strip("-").lower()
+    return slug or "item"
 
 
 def _normalize_tags(tags: list[str]) -> list[str]:
@@ -51,11 +57,26 @@ def _ensure_unique_character_name(session: Session, project_id: str, name: str, 
         raise ValueError("character_name_conflict")
 
 
+def _unique_slug(session: Session, project_id: str, base_slug: str, ignore_id: str | None = None) -> str:
+    candidate = base_slug
+    index = 2
+    while True:
+        stmt = select(Character.id).where(Character.project_id == project_id, Character.slug == candidate)
+        if ignore_id is not None:
+            stmt = stmt.where(Character.id != ignore_id)
+        if session.scalar(stmt) is None:
+            return candidate
+        candidate = f"{base_slug}-{index}"
+        index += 1
+
+
 def create_character(session: Session, project_id: str, payload: CharacterCreate) -> Character:
     _ensure_unique_character_name(session, project_id, payload.name)
+    slug = _unique_slug(session, project_id, slugify(payload.name))
     character = Character(
         id=str(uuid4()),
         project_id=project_id,
+        slug=slug,
         name=payload.name,
         alias=payload.alias,
         narrative_role=payload.narrative_role,
@@ -119,9 +140,11 @@ def archive_character(session: Session, character: Character) -> Character:
 def duplicate_character(session: Session, project_id: str, character: Character, payload: CharacterDuplicate) -> Character:
     copy_name = payload.name or f"{character.name} Copy"
     _ensure_unique_character_name(session, project_id, copy_name)
+    slug = _unique_slug(session, project_id, slugify(copy_name))
     duplicate = Character(
         id=str(uuid4()),
         project_id=project_id,
+        slug=slug,
         name=copy_name,
         alias=character.alias,
         narrative_role=character.narrative_role,

@@ -25,6 +25,9 @@ export function AppShell() {
           <Link to="/projects/demo-project" className="nav-link">
             Project Dashboard
           </Link>
+          <Link to="/projects/demo-project/story" className="nav-link">
+            Storyline
+          </Link>
           <div className="nav-note">
             Characters live inside a project context. Open a project dashboard to access Phase 2.
           </div>

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, JSON, String, Text
+from sqlalchemy import DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from kuti_backend.projects.models import Base, utcnow
@@ -10,9 +10,11 @@ from kuti_backend.projects.models import Base, utcnow
 
 class Character(Base):
     __tablename__ = "characters"
+    __table_args__ = (UniqueConstraint("project_id", "slug", name="uq_characters_project_slug"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     alias: Mapped[str | None] = mapped_column(String(255), nullable=True)
     narrative_role: Mapped[str | None] = mapped_column(String(255), nullable=True)

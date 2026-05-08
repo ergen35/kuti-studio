@@ -55,6 +55,7 @@ class CharacterRead(BaseModel):
 
     id: str
     project_id: str
+    slug: str
     name: str
     alias: str | None
     narrative_role: str | None

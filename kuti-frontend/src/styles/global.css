@@ -214,6 +214,111 @@ a {
   gap: 1.25rem;
 }
 
+.story-page {
+  gap: 1.25rem;
+}
+
+.story-hero {
+  margin-bottom: 0;
+}
+
+.story-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.story-search {
+  flex: 1;
+  min-width: 280px;
+}
+
+.story-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1rem;
+}
+
+.story-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.story-list,
+.reference-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.story-item,
+.reference-chip,
+.story-stat {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.58);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.story-item {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.story-item.is-selected {
+  border-color: rgba(140, 90, 43, 0.5);
+  background: rgba(255, 250, 242, 0.92);
+}
+
+.story-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.story-editor {
+  gap: 1rem;
+}
+
+.story-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.compact-form {
+  margin-top: 1rem;
+}
+
+.story-stat {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.story-stat strong {
+  font-size: 1.5rem;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+}
+
+.reference-chip {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.reference-chip span,
+.story-stat span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .character-layout {
   display: grid;
   grid-template-columns: 1fr minmax(0, 1.4fr);
@@ -378,7 +483,14 @@ select:focus {
   .character-layout,
   .form-grid-two,
   .detail-grid,
-  .filters-row {
+  .filters-row,
+  .story-layout,
+  .story-columns,
+  .story-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .story-toolbar {
+    align-items: stretch;
   }
 }
