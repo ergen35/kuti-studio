@@ -272,7 +272,7 @@ export function GenerationRoute() {
     }
   }, [querySourceId, selectedSourceId]);
 
-  const selectedMode: GenerationMode = sourceKind === "scene" ? (queryMode ?? "separate") : "grid";
+  const selectedMode: GenerationMode = sourceKind === "scene" || sourceKind === "panel" ? (queryMode ?? "separate") : "grid";
 
   const selectedSelectionIds = useMemo(() => {
     if (!storyQuery.data || !selectedSourceId) return [];
@@ -340,6 +340,20 @@ export function GenerationRoute() {
       image_count: selectedMode === "separate" ? (sourceKind === "scene" ? 3 : selectedSelectionIds.length || undefined) : undefined,
       title: normalizeText(formData.get("title")) || undefined,
       summary: normalizeText(formData.get("summary")),
+    });
+  };
+
+  const handlePanelFollowUp = () => {
+    if (!selectedPanel) return;
+
+    createMutation.mutate({
+      source_kind: "panel",
+      source_id: selectedPanel.id,
+      strategy: "direct",
+      model_key: selectedModelKey || undefined,
+      mode: "separate",
+      title: `${selectedPanel.title} follow-up`,
+      summary: `Follow-up generation from ${selectedPanel.title} in ${selectedBoard?.title ?? "the current board"}.`,
     });
   };
 
@@ -663,6 +677,11 @@ export function GenerationRoute() {
                         Caption
                         <textarea name="caption" rows={4} defaultValue={selectedPanel.caption} />
                       </label>
+                      <div className="project-actions">
+                        <button className="button button-secondary" type="button" onClick={handlePanelFollowUp} disabled={createMutation.isPending || !configuredModels.length}>
+                          {createMutation.isPending ? "Launching..." : "Follow up from panel"}
+                        </button>
+                      </div>
                       <button className="button button-primary" type="submit">
                         Save panel
                       </button>

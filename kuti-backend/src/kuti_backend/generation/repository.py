@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import mimetypes
 import struct
 import zlib
 from copy import deepcopy

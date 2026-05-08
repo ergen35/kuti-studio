@@ -79,6 +79,14 @@ def _failing_gpt_images_2_urlopen(request, timeout=None):
     raise URLError("provider unavailable")
 
 
+def _fake_generation_followup_urlopen(request, timeout=None):
+    if request.full_url.endswith("/v1/images/generations"):
+        return _fake_gpt_images_2_urlopen(request, timeout=timeout)
+    if request.full_url.endswith("/v1/responses"):
+        return _fake_sora_2_urlopen(request, timeout=timeout)
+    return _fake_gpt_images_2_urlopen(request, timeout=timeout)
+
+
 def _seedance_task_response(*, status: str, task_id: str = "seedance-task-1") -> _FakeResponse:
     payload: dict[str, object] = {"task_id": task_id, "status": status}
     if status == "succeeded":
@@ -951,6 +959,64 @@ def test_generation_studio_uses_seedance_2(tmp_path: Path, monkeypatch) -> None:
     image = client.get(f"/api/projects/{project_id}/generation/boards/{job['board']['id']}/panels/{job['board']['panels'][0]['id']}/image")
     assert image.status_code == 200
     assert image.headers["content-type"].startswith("video/mp4")
+
+
+def test_generation_studio_supports_panel_follow_up(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    monkeypatch.setenv("KUTI_GPT_IMAGES_2_BASE_URL", "https://example.invalid/images")
+    monkeypatch.setenv("KUTI_GPT_IMAGES_2_API_KEY", "test-key")
+    monkeypatch.setenv("KUTI_SORA_2_BASE_URL", "https://example.invalid/sora")
+    monkeypatch.setenv("KUTI_SORA_2_API_KEY", "test-key")
+    monkeypatch.setattr(generation_providers, "urlopen", _fake_generation_followup_urlopen)
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Panel Follow-up House", "settings_json": {"locations_json": ["Studio"]}},
+    ).json()
+    project_id = project["id"]
+
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Tome One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    scene = client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={"tome_id": tome["id"], "chapter_id": chapter["id"], "title": "Scene One", "summary": "Ari enters the studio."},
+    ).json()
+
+    initial = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "scene",
+            "source_id": scene["id"],
+            "strategy": "direct",
+            "model_key": "gpt_images_2",
+        },
+    )
+    assert initial.status_code == 201
+    board_id = initial.json()["board"]["id"]
+    panel_id = initial.json()["board"]["panels"][0]["id"]
+
+    follow_up = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "panel",
+            "source_id": panel_id,
+            "strategy": "direct",
+            "model_key": "sora_2",
+        },
+    )
+
+    assert follow_up.status_code == 201
+    job = follow_up.json()
+    assert job["source_kind"] == "panel"
+    assert job["metadata_json"]["source"]["kind"] == "panel"
+    assert job["metadata_json"]["source_panel"]["board_id"] == board_id
+    assert job["board"]["panels"][0]["image_name"].endswith(".png")
 
 
 def test_generation_studio_propagates_provider_failure(tmp_path: Path, monkeypatch) -> None:
