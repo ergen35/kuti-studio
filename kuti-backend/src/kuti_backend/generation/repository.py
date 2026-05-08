@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import struct
+import zlib
 from copy import deepcopy
 from datetime import UTC, datetime
 from html import escape
@@ -11,7 +14,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from kuti_backend.core.settings import Settings
-from kuti_backend.generation.providers import ModelKind, resolve_model_provider
+from kuti_backend.generation.providers import ModelKind, ModelKey, GeneratedImageArtifact, ModelProviderConfig, generate_media_artifact, resolve_model_provider
 from kuti_backend.generation.models import (
     GenerationBoard,
     GenerationBoardPanel,
@@ -85,6 +88,61 @@ def _generation_root(settings: Settings, project: Project, job_id: str) -> Path:
 def _write_text(path: Path, value: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(value, encoding="utf-8")
+
+
+def _write_bytes(path: Path, value: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(value)
+
+
+def _png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", zlib.crc32(chunk_type + data) & 0xFFFFFFFF)
+
+
+def _build_scene_snapshot_png(source: dict[str, object]) -> bytes:
+    width = 512
+    height = 768
+    seed = hashlib.sha256("|".join(str(source.get(key, "")) for key in ("label", "location", "summary", "content")).encode("utf-8")).digest()
+
+    def _rgb(offset: int) -> tuple[int, int, int]:
+        return seed[offset % len(seed)], seed[(offset + 7) % len(seed)], seed[(offset + 13) % len(seed)]
+
+    bg_top = _rgb(0)
+    bg_bottom = _rgb(3)
+    accent = _rgb(6)
+    shadow = _rgb(9)
+
+    def _mix(a: tuple[int, int, int], b: tuple[int, int, int], ratio: float) -> tuple[int, int, int]:
+        return tuple(int(a[i] * (1.0 - ratio) + b[i] * ratio) for i in range(3))
+
+    def _clamp(value: int) -> int:
+        return max(0, min(255, value))
+
+    image = bytearray()
+    for y in range(height):
+        row = bytearray([0])
+        t = y / max(height - 1, 1)
+        base = _mix(bg_top, bg_bottom, t)
+        for x in range(width):
+            fx = x / max(width - 1, 1)
+            color = list(base)
+            if 64 <= x < width - 64 and 88 <= y < 216:
+                color = list(_mix(color, accent, 0.35))
+            if 48 <= x < width - 48 and 260 <= y < 504:
+                color = list(_mix(color, shadow, 0.45))
+            if 96 <= x < width - 96 and 560 <= y < 704:
+                color = list(_mix(color, accent, 0.22))
+            vignette = int((abs(fx - 0.5) * 60) + (abs(t - 0.5) * 50))
+            color = [_clamp(channel - vignette) for channel in color]
+            row.extend(color)
+        image.extend(row)
+
+    compressed = zlib.compress(bytes(image), level=9)
+    png = bytearray(b"\x89PNG\r\n\x1a\n")
+    png.extend(_png_chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)))
+    png.extend(_png_chunk(b"IDAT", compressed))
+    png.extend(_png_chunk(b"IEND", b""))
+    return bytes(png)
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
@@ -189,19 +247,20 @@ def _job_title(source: dict[str, object], strategy: GenerationStrategy) -> str:
     return f"{source['label']} · {strategy.value} generation"
 
 
-def _job_prompt(source: dict[str, object], strategy: GenerationStrategy, version: Version | None) -> str:
+def _job_prompt(source: dict[str, object], strategy: GenerationStrategy, version: Version | None, provider: ModelProviderConfig) -> str:
     version_clause = f" using version {version.branch_name} #{version.version_index}" if version is not None else " from the current project state"
     return (
         f"Generate {strategy.value} illustration material for {source['kind']} '{source['label']}'"
-        f"{version_clause}. Use the local gpt-2-images entrypoint, keep the editorial cabinet mood, and prepare a board suitable for human validation."
+        f"{version_clause}. Use the {provider.display_name} entrypoint ({provider.api_model or provider.key}), keep the editorial cabinet mood, and prepare a board suitable for human validation."
     )
 
 
-def _job_metadata(source: dict[str, object], version: Version | None, strategy: GenerationStrategy) -> dict[str, object]:
+def _job_metadata(source: dict[str, object], version: Version | None, strategy: GenerationStrategy, provider: ModelProviderConfig) -> dict[str, object]:
     metadata: dict[str, object] = {
         "source": source,
         "strategy": strategy.value,
-        "entrypoint": "gpt-2-images",
+        "entrypoint": provider.api_model or provider.key,
+        "model_key": provider.key,
     }
     if version is not None:
         metadata["source_version"] = {
@@ -215,9 +274,14 @@ def _job_metadata(source: dict[str, object], version: Version | None, strategy: 
     return metadata
 
 
-def _select_model(settings: Settings, model_key: str | None) -> dict[str, object]:
-    provider = resolve_model_provider(settings, model_key, kind=ModelKind.image)
-    return provider.public_dict()
+def _select_model(settings: Settings, model_key: str | None) -> ModelProviderConfig:
+    if model_key is not None:
+        return resolve_model_provider(settings, model_key)
+
+    try:
+        return resolve_model_provider(settings, None, kind=ModelKind.image)
+    except ValueError:
+        return resolve_model_provider(settings, None, kind=ModelKind.video)
 
 
 def _board_metadata(job: GenerationJob, source: dict[str, object], strategy: GenerationStrategy, version: Version | None) -> dict[str, object]:
@@ -230,6 +294,40 @@ def _board_metadata(job: GenerationJob, source: dict[str, object], strategy: Gen
     if version is not None:
         payload["source_version_id"] = version.id
     return payload
+
+
+def _scene_snapshot_artifact(source: dict[str, object]) -> GeneratedImageArtifact | None:
+    if source.get("kind") != GenerationSourceKind.scene.value:
+        return None
+
+    return GeneratedImageArtifact(content=_build_scene_snapshot_png(source), mime_type="image/png", file_extension=".png")
+
+
+def _panel_prompt(job_prompt: str, source: dict[str, object], panel_index: int, panel_total: int) -> str:
+    return (
+        f"{job_prompt}\n\n"
+        f"Panel {panel_index} of {panel_total} for {source['label']}.\n"
+        f"Keep the editorial cabinet mood and preserve the scene's narrative intent."
+    )
+
+
+def _panel_artifact(
+    provider: ModelProviderConfig,
+    job_prompt: str,
+    source: dict[str, object],
+    source_kind: GenerationSourceKind,
+    panel_index: int,
+    panel_total: int,
+) -> tuple[Path, dict[str, object], GeneratedImageArtifact | None]:
+    panel_prompt = _panel_prompt(job_prompt, source, panel_index, panel_total)
+    if provider.kind in {ModelKind.image, ModelKind.video}:
+        source_image = _scene_snapshot_artifact(source) if provider.key == ModelKey.sora_2.value and source_kind == GenerationSourceKind.scene else None
+        artifact = generate_media_artifact(provider, panel_prompt, source_image=source_image)
+        suffix = artifact.file_extension if artifact.file_extension.startswith(".") else f".{artifact.file_extension}"
+        metadata = {"mime_type": artifact.mime_type, "provider": provider.key}
+        return Path(f"panel-{panel_index}{suffix}"), metadata, artifact
+
+    return Path(f"panel-{panel_index}.svg"), {"mime_type": "image/svg+xml", "provider": provider.key}, None
 
 
 def _job_steps(plan: list[str], prompt: str, source: dict[str, object], panel_total: int) -> list[dict[str, object]]:
@@ -328,6 +426,8 @@ def create_generation_job(session: Session, settings: Settings, project_id: str,
     source = _source_or_404(session, project_id, source_kind, payload.source_id)
     version = _version_or_404(session, project_id, payload.source_version_id)
     model = _select_model(settings, payload.model_key)
+    model_payload = model.public_dict()
+    entrypoint = model.api_model or model.key
     job_id = str(uuid4())
     job = GenerationJob(
         id=job_id,
@@ -337,13 +437,13 @@ def create_generation_job(session: Session, settings: Settings, project_id: str,
         source_label=source["label"],
         source_version_id=version.id if version is not None else None,
         strategy=strategy.value,
-        entrypoint="gpt-2-images",
+        entrypoint=entrypoint,
         title=payload.title or _job_title(source, strategy),
-        prompt=_job_prompt(source, strategy, version),
+        prompt=_job_prompt(source, strategy, version, model),
         summary=payload.summary,
         status=GenerationJobStatus.running.value,
         progress=15,
-        metadata_json={**_job_metadata(source, version, strategy), "model": model},
+        metadata_json={**_job_metadata(source, version, strategy, model), "model": model_payload},
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
@@ -406,15 +506,19 @@ def create_generation_job(session: Session, settings: Settings, project_id: str,
         step_ref = panel_sources[min(index, len(panel_sources) - 1)] if panel_sources else None
         panel_id = str(uuid4())
         panel_title = f"Panel {index + 1}"
-        panel_path = board_root / f"panel-{index + 1}.svg"
-        accent = ["#8c5a2b", "#3d2816", "#b47a44", "#6f7d8d"][index % 4]
-        _write_svg(
-            panel_path,
-            panel_title,
-            f"{source['label']} · {strategy.value}",
-            f"{job.prompt}\n\nPanel {index + 1} of {panel_total}",
-            accent,
-        )
+        panel_rel_path, panel_metadata, panel_artifact = _panel_artifact(model, job.prompt, source, source_kind, index + 1, panel_total)
+        panel_path = board_root / panel_rel_path
+        if panel_artifact is None:
+            accent = ["#8c5a2b", "#3d2816", "#b47a44", "#6f7d8d"][index % 4]
+            _write_svg(
+                panel_path,
+                panel_title,
+                f"{source['label']} · {strategy.value}",
+                f"{job.prompt}\n\nPanel {index + 1} of {panel_total}",
+                accent,
+            )
+        else:
+            _write_bytes(panel_path, panel_artifact.content)
         panel = GenerationBoardPanel(
             id=panel_id,
             board_id=board.id,
@@ -426,7 +530,7 @@ def create_generation_job(session: Session, settings: Settings, project_id: str,
             status=GenerationPanelStatus.draft.value,
             image_path=str(panel_path),
             image_name=panel_path.name,
-            metadata_json={"panel_index": index + 1, "strategy": strategy.value, "source_kind": source_kind.value},
+            metadata_json={"panel_index": index + 1, "strategy": strategy.value, "source_kind": source_kind.value, **panel_metadata},
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
         )

@@ -145,8 +145,15 @@ def read_generation_panel_image(session: SessionDep, project_id: str, board_id: 
         raise HTTPException(status_code=404, detail="Generation panel not found")
 
     from pathlib import Path
+    from mimetypes import guess_type
 
     artifact = Path(panel.image_path)
     if not artifact.exists() or not artifact.is_file():
         raise HTTPException(status_code=404, detail="Generation panel image not found")
-    return FileResponse(artifact, media_type="image/svg+xml", filename=panel.image_name)
+    media_type = None
+    if isinstance(panel.metadata_json, dict):
+        metadata_media_type = panel.metadata_json.get("mime_type")
+        if isinstance(metadata_media_type, str) and metadata_media_type.strip():
+            media_type = metadata_media_type
+    media_type = media_type or guess_type(artifact.name)[0] or "application/octet-stream"
+    return FileResponse(artifact, media_type=media_type, filename=panel.image_name)

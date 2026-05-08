@@ -1,11 +1,82 @@
 from __future__ import annotations
 
+import base64
+import json
 from pathlib import Path
+from urllib.error import URLError
 
 from fastapi.testclient import TestClient
 
 from kuti_backend.api.main import create_app
 from kuti_backend.core.settings import Settings, get_settings
+from kuti_backend.generation import providers as generation_providers
+
+
+PNG_PIXEL = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO9XnG0AAAAASUVORK5CYII="
+)
+
+
+class _FakeHeaders:
+    def get_content_charset(self) -> str:
+        return "utf-8"
+
+    def get_content_type(self) -> str:
+        return "application/json"
+
+
+class _FakeResponse:
+    def __init__(self, payload: bytes) -> None:
+        self._payload = payload
+        self.headers = _FakeHeaders()
+
+    def read(self) -> bytes:
+        return self._payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        return False
+
+
+def _fake_gpt_images_2_urlopen(request, timeout=None):
+    request_data = json.loads(request.data.decode("utf-8"))
+    assert request.full_url.endswith("/v1/images/generations")
+    assert request_data["model"] == "gpt-image-2"
+    assert request_data["response_format"] == "b64_json"
+    payload = {
+        "data": [
+            {
+                "b64_json": base64.b64encode(PNG_PIXEL).decode("ascii"),
+            }
+        ]
+    }
+    return _FakeResponse(json.dumps(payload).encode("utf-8"))
+
+
+def _fake_sora_2_urlopen(request, timeout=None):
+    request_data = json.loads(request.data.decode("utf-8"))
+    assert request.full_url.endswith("/v1/responses")
+    assert request_data["model"] == "sora-2"
+    assert request_data["tools"] == [{"type": "image_generation"}]
+    content = request_data["input"][0]["content"]
+    assert content[0]["type"] == "input_text"
+    assert content[1]["type"] == "input_image"
+    assert content[1]["image_url"].startswith("data:image/png;base64,")
+    payload = {
+        "output": [
+            {
+                "type": "image_generation_call",
+                "result": base64.b64encode(PNG_PIXEL).decode("ascii"),
+            }
+        ]
+    }
+    return _FakeResponse(json.dumps(payload).encode("utf-8"))
+
+
+def _failing_gpt_images_2_urlopen(request, timeout=None):
+    raise URLError("provider unavailable")
 
 
 def test_health_and_config_endpoints(tmp_path: Path, monkeypatch) -> None:
@@ -657,6 +728,7 @@ def test_generation_studio_creates_board_and_panels(tmp_path: Path, monkeypatch)
     monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
     monkeypatch.setenv("KUTI_GPT_IMAGES_2_BASE_URL", "https://example.invalid/images")
     monkeypatch.setenv("KUTI_GPT_IMAGES_2_API_KEY", "test-key")
+    monkeypatch.setattr(generation_providers, "urlopen", _fake_gpt_images_2_urlopen)
     get_settings.cache_clear()
     app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
     client = TestClient(app)
@@ -710,6 +782,7 @@ def test_generation_studio_creates_board_and_panels(tmp_path: Path, monkeypatch)
     assert job["progress"] == 100
     assert job["model_key"] == "gpt_images_2"
     assert job["model_name"] == "GPT Images 2"
+    assert all(panel["image_name"].endswith(".png") for panel in job["board"]["panels"])
     assert len(job["steps"]) >= 1
     assert job["board"]["panels"]
 
@@ -730,7 +803,7 @@ def test_generation_studio_creates_board_and_panels(tmp_path: Path, monkeypatch)
 
     image = client.get(f"/api/projects/{project_id}/generation/boards/{board_id}/panels/{panel_id}/image")
     assert image.status_code == 200
-    assert image.headers["content-type"].startswith("image/svg+xml")
+    assert image.headers["content-type"].startswith("image/png")
 
     panel_update = client.patch(
         f"/api/projects/{project_id}/generation/boards/{board_id}/panels/{panel_id}",
@@ -749,6 +822,103 @@ def test_generation_studio_creates_board_and_panels(tmp_path: Path, monkeypatch)
     refreshed_job = client.get(f"/api/projects/{project_id}/generation/jobs/{job['id']}")
     assert refreshed_job.status_code == 200
     assert refreshed_job.json()["board"]["status"] == "validated"
+
+
+def test_generation_studio_uses_sora_2_with_source_image(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    monkeypatch.setenv("KUTI_SORA_2_BASE_URL", "https://example.invalid/sora")
+    monkeypatch.setenv("KUTI_SORA_2_API_KEY", "test-key")
+    monkeypatch.setattr(generation_providers, "urlopen", _fake_sora_2_urlopen)
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Sora House", "settings_json": {"locations_json": ["Studio"]}},
+    ).json()
+    project_id = project["id"]
+
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Tome One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    scene = client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={
+            "tome_id": tome["id"],
+            "chapter_id": chapter["id"],
+            "title": "Scene One",
+            "location": "Studio",
+            "summary": "Ari tests the lighting.",
+            "content": "Ari enters the studio and studies the cabinet.",
+        },
+    ).json()
+
+    response = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "scene",
+            "source_id": scene["id"],
+            "strategy": "direct",
+            "model_key": "sora_2",
+        },
+    )
+
+    assert response.status_code == 201
+    job = response.json()
+    assert job["model_key"] == "sora_2"
+    assert job["model_name"] == "Sora 2"
+    assert all(panel["image_name"].endswith(".png") for panel in job["board"]["panels"])
+
+    image = client.get(f"/api/projects/{project_id}/generation/boards/{job['board']['id']}/panels/{job['board']['panels'][0]['id']}/image")
+    assert image.status_code == 200
+    assert image.headers["content-type"].startswith("image/png")
+
+
+def test_generation_studio_propagates_provider_failure(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    monkeypatch.setenv("KUTI_GPT_IMAGES_2_BASE_URL", "https://example.invalid/images")
+    monkeypatch.setenv("KUTI_GPT_IMAGES_2_API_KEY", "test-key")
+    monkeypatch.setattr(generation_providers, "urlopen", _failing_gpt_images_2_urlopen)
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Generation House", "settings_json": {"locations_json": ["Studio"]}},
+    ).json()
+    project_id = project["id"]
+
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Tome One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    scene = client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={
+            "tome_id": tome["id"],
+            "chapter_id": chapter["id"],
+            "title": "Scene One",
+            "content": "Ari arrives at the studio.",
+        },
+    ).json()
+
+    response = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "scene",
+            "source_id": scene["id"],
+            "strategy": "direct",
+            "model_key": "gpt_images_2",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "generation_provider_failed"
 
 
 def test_generation_job_requires_configured_image_model(tmp_path: Path, monkeypatch) -> None:
