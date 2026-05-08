@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from kuti_backend.core.database import build_session_factory
+from kuti_backend.core.database import get_session
 from kuti_backend.core.settings import Settings, get_settings
 from kuti_backend.projects.repository import (
     archive_project,
@@ -30,18 +30,6 @@ router = APIRouter()
 
 def current_settings(request: Request) -> Settings:
     return getattr(request.app.state, "settings", get_settings())
-
-
-def get_session(request: Request):
-    session_factory = getattr(request.app.state, "session_factory", None)
-    if session_factory is None:
-        session_factory = build_session_factory(request.app.state.engine)
-        request.app.state.session_factory = session_factory
-    session: Session = session_factory()
-    try:
-        yield session
-    finally:
-        session.close()
 
 
 SessionDep = Annotated[Session, Depends(get_session)]

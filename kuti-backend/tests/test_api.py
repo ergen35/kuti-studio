@@ -86,3 +86,77 @@ def test_project_crud_and_portable_files(tmp_path: Path, monkeypatch) -> None:
     assert exported.json()["slug"] == slug
 
     assert (tmp_path / "kuti-data" / "projects" / slug / "project.json").exists()
+
+
+def test_character_profiles_and_relations(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post("/api/projects", json={"name": "Atlas Sector"}).json()
+
+    created = client.post(
+        f"/api/projects/{project['id']}/characters",
+        json={
+            "name": "Jack Vespers",
+            "alias": "The Lantern",
+            "narrative_role": "protagonist",
+            "description": "A cautious rebel from the docks.",
+            "physical_description": "Lean frame, silver scar over the left brow.",
+            "color_palette_json": ["#121212", "#d4a24c", "#f0e6d2"],
+            "costume_elements_json": ["long coat", "brass buckle", "fingerless gloves"],
+            "key_traits_json": ["observant", "guarded", "resourceful"],
+            "personality": "Soft-spoken but relentless when cornered.",
+            "narrative_arc": "Learns to trust a crew and lead openly.",
+            "tags_json": ["lead", "dockside", "noir"],
+        },
+    )
+    assert created.status_code == 201
+    character = created.json()
+
+    detail = client.get(f"/api/projects/{project['id']}/characters/{character['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["physical_description"].startswith("Lean frame")
+    assert detail.json()["color_palette_json"] == ["#121212", "#d4a24c", "#f0e6d2"]
+
+    updated = client.patch(
+        f"/api/projects/{project['id']}/characters/{character['id']}",
+        json={
+            "personality": "Measured and defiant.",
+            "tags_json": ["lead", "docks", "noir"],
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["personality"] == "Measured and defiant."
+
+    duplicate = client.post(
+        f"/api/projects/{project['id']}/characters/{character['id']}/duplicate",
+        json={"name": "Jack Vespers Variant"},
+    )
+    assert duplicate.status_code == 201
+
+    relation = client.post(
+        f"/api/projects/{project['id']}/characters/{character['id']}/relations",
+        json={
+            "source_character_id": character["id"],
+            "target_character_id": duplicate.json()["id"],
+            "relation_type": "rival",
+            "strength": 72,
+            "narrative_dependency": "Their choices drive the central break.",
+            "notes": "Keep the tension visible in scenes 2 and 4.",
+        },
+    )
+    assert relation.status_code == 201
+
+    voice = client.post(
+        f"/api/projects/{project['id']}/characters/{character['id']}/voice-samples",
+        json={"label": "calm low register", "voice_notes": "Slow, intimate phrasing."},
+    )
+    assert voice.status_code == 201
+
+    refreshed = client.get(f"/api/projects/{project['id']}/characters/{character['id']}")
+    assert refreshed.status_code == 200
+    assert refreshed.json()["relationships_summary"] is not None
+    assert len(refreshed.json()["relations"]) == 1
+    assert len(refreshed.json()["voice_samples"]) == 1
