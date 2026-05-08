@@ -266,6 +266,68 @@ export type StorySummaryResponse = {
   orphan_references: StoryOrphanReferenceRead[];
 };
 
+export type AssetStatus = "active" | "archived";
+
+export type AssetRead = {
+  id: string;
+  project_id: string;
+  slug: string;
+  name: string;
+  original_filename: string;
+  mime_type: string;
+  checksum: string;
+  size_bytes: number;
+  storage_path: string;
+  description: string;
+  tags_json: string[];
+  status: AssetStatus;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+};
+
+export type AssetLinkRead = {
+  id: string;
+  project_id: string;
+  asset_id: string;
+  target_kind: string;
+  target_id: string;
+  note: string;
+  created_at: string;
+};
+
+export type AssetDetail = AssetRead & {
+  links: AssetLinkRead[];
+};
+
+export type AssetListResponse = {
+  items: AssetRead[];
+};
+
+export type AssetImportInput = {
+  source_path: string;
+  name?: string | null;
+  slug?: string | null;
+  description?: string;
+  tags_json?: string[];
+  mime_type?: string | null;
+};
+
+export type AssetUpdateInput = {
+  name?: string | null;
+  slug?: string | null;
+  description?: string | null;
+  tags_json?: string[] | null;
+  status?: AssetStatus | null;
+};
+
+export type AssetLinkCreateInput = {
+  asset_id: string;
+  target_kind: string;
+  target_id: string;
+  note?: string;
+};
+
 const apiBaseUrl = import.meta.env.VITE_KUTI_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string): Promise<T> {
@@ -510,4 +572,51 @@ export function deleteScene(projectId: string, sceneId: string) {
 export function listStoryReferences(projectId: string, sceneId?: string) {
   const suffix = sceneId ? `?scene_id=${encodeURIComponent(sceneId)}` : "";
   return request<StoryReferenceRead[]>(`/api/projects/${projectId}/story/references${suffix}`);
+}
+
+export function listAssets(projectId: string) {
+  return request<AssetListResponse>(`/api/projects/${projectId}/assets`);
+}
+
+export function getAsset(projectId: string, assetId: string) {
+  return request<AssetDetail>(`/api/projects/${projectId}/assets/${assetId}`);
+}
+
+export function importAsset(projectId: string, payload: AssetImportInput) {
+  return requestJson<AssetRead>(`/api/projects/${projectId}/assets/import`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAsset(projectId: string, assetId: string, payload: AssetUpdateInput) {
+  return requestJson<AssetRead>(`/api/projects/${projectId}/assets/${assetId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function archiveAsset(projectId: string, assetId: string) {
+  return requestJson<AssetRead>(`/api/projects/${projectId}/assets/${assetId}/archive`, {
+    method: "POST",
+  });
+}
+
+export function deleteAsset(projectId: string, assetId: string) {
+  return requestVoid(`/api/projects/${projectId}/assets/${assetId}`, { method: "DELETE" });
+}
+
+export function listAssetLinks(projectId: string, assetId: string) {
+  return request<AssetLinkRead[]>(`/api/projects/${projectId}/assets/${assetId}/links`);
+}
+
+export function createAssetLink(projectId: string, assetId: string, payload: AssetLinkCreateInput) {
+  return requestJson<AssetLinkRead>(`/api/projects/${projectId}/assets/${assetId}/links`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAssetLink(projectId: string, assetId: string, linkId: string) {
+  return requestVoid(`/api/projects/${projectId}/assets/${assetId}/links/${linkId}`, { method: "DELETE" });
 }

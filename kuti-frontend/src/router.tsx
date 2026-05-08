@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { CharactersRoute } from "@/routes/characters";
+import { AssetsRoute } from "@/routes/assets";
 import { HomeRoute } from "@/routes/home";
 import { ProjectRoute } from "@/routes/project";
 import { StoryRoute } from "@/routes/story";
@@ -14,6 +15,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: HomeRoute },
       { path: "projects/:projectId", Component: ProjectRoute },
+      { path: "projects/:projectId/assets", Component: AssetsRoute },
       { path: "projects/:projectId/characters", Component: CharactersRoute },
       { path: "projects/:projectId/story", Component: StoryRoute },
       { path: "projects/:projectId/settings", Component: SettingsRoute },

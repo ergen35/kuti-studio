@@ -90,11 +90,11 @@ export function HomeRoute() {
         <div>
           <p className="eyebrow">Project Hub</p>
           <h3>Open, create, and manage local story projects.</h3>
-          <p className="muted max-width">
+            <p className="muted max-width">
             The first phase of Kuti Studio establishes the shell, the contract,
             and the project entry point. Projects will appear here once the
-            Project Hub data model lands.
-          </p>
+            local data model lands.
+            </p>
         </div>
         <div className="hero-card">
           <span className="status-dot" />

@@ -46,6 +46,7 @@ def get_session(request: Request) -> Iterator[Session]:
 
 def init_database(settings: Settings) -> Engine:
     from kuti_backend.projects.models import Base
+    import kuti_backend.assets.models  # noqa: F401
     import kuti_backend.characters.models  # noqa: F401
     import kuti_backend.story.models  # noqa: F401
 

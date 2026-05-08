@@ -295,6 +295,86 @@ def test_story_slugs_are_project_unique(tmp_path: Path, monkeypatch) -> None:
     assert scene_b["slug"] == "arrival-2"
 
 
+def test_asset_import_and_usage_links(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post("/api/projects", json={"name": "Media House"}).json()
+    character = client.post(
+        f"/api/projects/{project['id']}/characters",
+        json={"name": "Sera Loom", "narrative_role": "lead"},
+    ).json()
+
+    source_file = tmp_path / "reference.png"
+    source_file.write_bytes(b"fake-image-bytes")
+
+    imported = client.post(
+        f"/api/projects/{project['id']}/assets/import",
+        json={
+            "source_path": str(source_file),
+            "name": "Reference Plate",
+            "slug": "reference-plate",
+            "description": "Primary visual reference.",
+            "tags_json": ["reference", "image"],
+            "mime_type": "image/png",
+        },
+    )
+    assert imported.status_code == 201
+    asset = imported.json()
+    assert asset["slug"] == "reference-plate"
+    assert asset["status"] == "active"
+
+    asset_file = Path(asset["storage_path"])
+    assert asset_file.exists()
+
+    listed = client.get(f"/api/projects/{project['id']}/assets")
+    assert listed.status_code == 200
+    assert len(listed.json()["items"]) == 1
+
+    detail = client.get(f"/api/projects/{project['id']}/assets/{asset['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["links"] == []
+
+    link = client.post(
+        f"/api/projects/{project['id']}/assets/{asset['id']}/links",
+        json={
+            "asset_id": asset["id"],
+            "target_kind": "character",
+            "target_id": character["id"],
+            "note": "Palette source for the lead character.",
+        },
+    )
+    assert link.status_code == 201
+
+    missing_target = client.post(
+        f"/api/projects/{project['id']}/assets/{asset['id']}/links",
+        json={
+            "asset_id": asset["id"],
+            "target_kind": "scene",
+            "target_id": "missing-scene-id",
+            "note": "Invalid reference should be rejected.",
+        },
+    )
+    assert missing_target.status_code == 404
+
+    detail_with_link = client.get(f"/api/projects/{project['id']}/assets/{asset['id']}")
+    assert detail_with_link.status_code == 200
+    assert len(detail_with_link.json()["links"]) == 1
+
+    archived = client.post(f"/api/projects/{project['id']}/assets/{asset['id']}/archive")
+    assert archived.status_code == 200
+    assert archived.json()["status"] == "archived"
+
+    deleted_link = client.delete(f"/api/projects/{project['id']}/assets/{asset['id']}/links/{link.json()['id']}")
+    assert deleted_link.status_code == 204
+
+    deleted = client.delete(f"/api/projects/{project['id']}/assets/{asset['id']}")
+    assert deleted.status_code == 204
+    assert not asset_file.exists()
+
+
 def test_character_routes_require_existing_project(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
     get_settings.cache_clear()
