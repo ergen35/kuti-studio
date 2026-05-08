@@ -432,9 +432,11 @@ export type WarningScanResponse = {
   items: WarningRead[];
 };
 
-export type GenerationSourceKind = "scene" | "chapter" | "tome";
+export type GenerationSourceKind = "scene" | "chapter" | "tome" | "panel";
 
 export type GenerationStrategy = "direct" | "intermediate";
+
+export type GenerationMode = "grid" | "separate";
 
 export type GenerationJobStatus = "pending" | "running" | "ready" | "validated" | "failed";
 
@@ -539,6 +541,11 @@ export type GenerationJobCreateInput = {
   source_version_id?: string | null;
   strategy?: GenerationStrategy;
   model_key?: string | null;
+  mode?: GenerationMode;
+  selection_ids?: string[];
+  grid_rows?: number | null;
+  grid_cols?: number | null;
+  image_count?: number | null;
   title?: string | null;
   summary?: string;
 };

@@ -79,6 +79,29 @@ def _failing_gpt_images_2_urlopen(request, timeout=None):
     raise URLError("provider unavailable")
 
 
+def _seedance_task_response(*, status: str, task_id: str = "seedance-task-1") -> _FakeResponse:
+    payload: dict[str, object] = {"task_id": task_id, "status": status}
+    if status == "succeeded":
+        payload["result"] = base64.b64encode(PNG_PIXEL).decode("ascii")
+        payload["mime_type"] = "video/mp4"
+        payload["type"] = "video_generation_call"
+    return _FakeResponse(json.dumps(payload).encode("utf-8"))
+
+
+def _fake_seedance_2_urlopen(request, timeout=None):
+    if request.full_url.endswith("/v1/videos/generations") and request.data is not None:
+        request_data = json.loads(request.data.decode("utf-8"))
+        assert request_data["model"] == "seedance-2"
+        assert request_data["prompt"]
+        assert request_data["resolution"] == "720p"
+        return _seedance_task_response(status="queued")
+
+    if request.full_url.endswith("/v1/videos/generations/seedance-task-1") or request.full_url.endswith("/v1/videos/seedance-task-1") or request.full_url.endswith("/v1/tasks/seedance-task-1"):
+        return _seedance_task_response(status="succeeded")
+
+    raise AssertionError(f"Unexpected Seedance request: {request.full_url}")
+
+
 def test_health_and_config_endpoints(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
     get_settings.cache_clear()
@@ -877,6 +900,59 @@ def test_generation_studio_uses_sora_2_with_source_image(tmp_path: Path, monkeyp
     assert image.headers["content-type"].startswith("image/png")
 
 
+def test_generation_studio_uses_seedance_2(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    monkeypatch.setenv("KUTI_SEEDANCE_2_BASE_URL", "https://example.invalid/seedance")
+    monkeypatch.setenv("KUTI_SEEDANCE_2_API_KEY", "test-key")
+    monkeypatch.setattr(generation_providers, "urlopen", _fake_seedance_2_urlopen)
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Seedance House", "settings_json": {"locations_json": ["Studio"]}},
+    ).json()
+    project_id = project["id"]
+
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Tome One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    scene = client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={
+            "tome_id": tome["id"],
+            "chapter_id": chapter["id"],
+            "title": "Scene One",
+            "location": "Studio",
+            "summary": "Ari tests the lighting.",
+            "content": "Ari enters the studio and studies the cabinet.",
+        },
+    ).json()
+
+    response = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "scene",
+            "source_id": scene["id"],
+            "strategy": "direct",
+            "model_key": "seedance_2",
+        },
+    )
+
+    assert response.status_code == 201
+    job = response.json()
+    assert job["model_key"] == "seedance_2"
+    assert job["model_name"] == "Seedance 2"
+    assert all(panel["image_name"].endswith(".mp4") for panel in job["board"]["panels"])
+
+    image = client.get(f"/api/projects/{project_id}/generation/boards/{job['board']['id']}/panels/{job['board']['panels'][0]['id']}/image")
+    assert image.status_code == 200
+    assert image.headers["content-type"].startswith("video/mp4")
+
+
 def test_generation_studio_propagates_provider_failure(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
     monkeypatch.setenv("KUTI_GPT_IMAGES_2_BASE_URL", "https://example.invalid/images")
@@ -978,6 +1054,74 @@ def test_generation_job_requires_configured_image_model(tmp_path: Path, monkeypa
 
     assert response.status_code == 400
     assert response.json()["detail"] == "model_not_configured"
+
+
+def test_generation_studio_supports_chapter_and_tome_grid_planches(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    monkeypatch.setenv("KUTI_GPT_IMAGES_2_BASE_URL", "https://example.invalid/images")
+    monkeypatch.setenv("KUTI_GPT_IMAGES_2_API_KEY", "test-key")
+    monkeypatch.setattr(generation_providers, "urlopen", _fake_gpt_images_2_urlopen)
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Grid House", "settings_json": {"locations_json": ["Studio"]}},
+    ).json()
+    project_id = project["id"]
+
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Tome One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    scene_one = client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={"tome_id": tome["id"], "chapter_id": chapter["id"], "title": "Scene One", "summary": "One"},
+    ).json()
+    scene_two = client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={"tome_id": tome["id"], "chapter_id": chapter["id"], "title": "Scene Two", "summary": "Two"},
+    ).json()
+
+    chapter_response = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "chapter",
+            "source_id": chapter["id"],
+            "strategy": "direct",
+            "model_key": "gpt_images_2",
+            "mode": "grid",
+            "selection_ids": [scene_one["id"], scene_two["id"]],
+            "grid_rows": 1,
+            "grid_cols": 2,
+        },
+    )
+    assert chapter_response.status_code == 201
+    chapter_job = chapter_response.json()
+    assert chapter_job["metadata_json"]["mode"] == "grid"
+    assert chapter_job["metadata_json"]["selection_ids"] == [scene_one["id"], scene_two["id"]]
+    assert chapter_job["board"]["panels"][0]["image_name"].endswith(".svg")
+
+    tome_response = client.post(
+        f"/api/projects/{project_id}/generation/jobs",
+        json={
+            "source_kind": "tome",
+            "source_id": tome["id"],
+            "strategy": "intermediate",
+            "model_key": "gpt_images_2",
+            "mode": "grid",
+            "selection_ids": [chapter["id"]],
+            "grid_rows": 2,
+            "grid_cols": 1,
+        },
+    )
+    assert tome_response.status_code == 201
+    tome_job = tome_response.json()
+    assert tome_job["metadata_json"]["mode"] == "grid"
+    assert tome_job["metadata_json"]["selection_ids"] == [chapter["id"]]
+    assert tome_job["board"]["panels"][0]["image_name"].endswith(".svg")
 
 
 def test_character_routes_require_existing_project(tmp_path: Path, monkeypatch) -> None:

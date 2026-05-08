@@ -4,6 +4,7 @@ import base64
 import binascii
 import json
 import mimetypes
+from time import monotonic, sleep
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from urllib.error import HTTPError, URLError
@@ -156,7 +157,7 @@ def _extract_image_bytes(payload: object, timeout_seconds: float) -> tuple[bytes
     for value in direct_values:
         if isinstance(value, str) and value.strip():
             try:
-                return base64.b64decode(value, validate=True), "image/png"
+                return base64.b64decode(value, validate=True), _payload_mime_type(payload) or "image/png"
             except binascii.Error:
                 pass
 
@@ -174,7 +175,7 @@ def _extract_image_bytes(payload: object, timeout_seconds: float) -> tuple[bytes
                     try:
                         with urlopen(url, timeout=timeout_seconds) as image_response:
                             content = image_response.read()
-                            mime = image_response.headers.get_content_type() or "image/png"
+                            mime = image_response.headers.get_content_type() or mimetypes.guess_type(url)[0] or _payload_mime_type(entry) or "image/png"
                             return content, mime
                     except (HTTPError, URLError, OSError):
                         continue
@@ -190,6 +191,28 @@ def _source_image_payload(source_image: GeneratedImageArtifact | None) -> dict[s
         "image_url": _data_url(source_image.content, source_image.mime_type),
         "detail": "original",
     }
+
+
+def _payload_mime_type(payload: object) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    mime_type = payload.get("mime_type")
+    if isinstance(mime_type, str) and mime_type.strip():
+        return mime_type
+    kind = payload.get("type")
+    if kind == "video_generation_call":
+        return "video/mp4"
+    return None
+
+
+def _media_url(payload: object) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    for key in ("video_url", "output_url", "result_url", "url", "image_url"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
 
 
 def generate_media_artifact(
@@ -228,6 +251,18 @@ def generate_media_artifact(
             "response_format": "b64_json",
             "n": 1,
         }
+    elif provider.key == ModelKey.seedance_2.value:
+        endpoint = f"{provider.base_url.rstrip('/')}/v1/videos/generations"
+        request_payload = {
+            "model": provider.api_model or provider.key,
+            "prompt": prompt,
+            "resolution": "720p",
+            "duration": 5,
+            "aspect_ratio": "16:9",
+        }
+        source_image_payload = _source_image_payload(source_image)
+        if source_image_payload is not None:
+            request_payload["image_url"] = source_image_payload["image_url"]
     else:
         raise ValueError("model_not_implemented")
 
@@ -253,6 +288,69 @@ def generate_media_artifact(
         payload = json.loads(raw_body.decode(charset))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("generation_provider_invalid_response") from exc
+
+    if provider.key == ModelKey.seedance_2.value:
+        task_payload = payload
+        if not isinstance(task_payload, dict):
+            raise ValueError("generation_provider_invalid_response")
+
+        task_id = None
+        for key in ("task_id", "id", "job_id"):
+            value = task_payload.get(key)
+            if isinstance(value, str) and value.strip():
+                task_id = value
+                break
+
+        deadline = monotonic() + timeout_seconds
+        while True:
+            status = task_payload.get("status")
+            status_value = status.lower() if isinstance(status, str) else ""
+
+            media_bytes, media_mime_type = _extract_image_bytes(task_payload, timeout_seconds)
+            if media_bytes is not None:
+                resolved_mime_type = media_mime_type or "video/mp4"
+                file_extension = mimetypes.guess_extension(resolved_mime_type, strict=False) or ".mp4"
+                return GeneratedImageArtifact(content=media_bytes, mime_type=resolved_mime_type, file_extension=file_extension)
+
+            media_url = _media_url(task_payload)
+            if media_url is not None:
+                try:
+                    with urlopen(media_url, timeout=timeout_seconds) as media_response:
+                        content = media_response.read()
+                        resolved_mime_type = media_response.headers.get_content_type() or mimetypes.guess_type(media_url)[0] or _payload_mime_type(task_payload) or "video/mp4"
+                        file_extension = mimetypes.guess_extension(resolved_mime_type, strict=False) or ".mp4"
+                        return GeneratedImageArtifact(content=content, mime_type=resolved_mime_type, file_extension=file_extension)
+                except (HTTPError, URLError, TimeoutError, OSError):
+                    pass
+
+            if status_value in {"succeeded", "success", "completed", "done"}:
+                break
+            if status_value in {"failed", "error", "cancelled", "canceled"}:
+                raise ValueError("generation_provider_failed")
+            if task_id is None or monotonic() >= deadline:
+                raise ValueError("generation_provider_failed")
+
+            poll_request = Request(
+                f"{provider.base_url.rstrip('/')}/v1/videos/generations/{task_id}",
+                headers={
+                    "Authorization": f"Bearer {provider.api_key}",
+                    "Accept": "application/json",
+                },
+                method="GET",
+            )
+            try:
+                with urlopen(poll_request, timeout=timeout_seconds) as poll_response:
+                    raw_poll_body = poll_response.read()
+                    poll_charset = poll_response.headers.get_content_charset() or "utf-8"
+            except (HTTPError, URLError, TimeoutError, OSError) as exc:
+                raise ValueError("generation_provider_failed") from exc
+
+            try:
+                task_payload = json.loads(raw_poll_body.decode(poll_charset))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise ValueError("generation_provider_invalid_response") from exc
+
+            sleep(0.1)
 
     image_bytes, mime_type = _extract_image_bytes(payload, timeout_seconds)
     if image_bytes is None:

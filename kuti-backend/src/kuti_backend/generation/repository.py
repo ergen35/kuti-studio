@@ -67,6 +67,27 @@ def _source_or_404(session: Session, project_id: str, source_kind: GenerationSou
             raise ValueError("generation_source_not_found")
         return {"kind": source_kind.value, "id": source.id, "label": source.title, "slug": source.slug}
 
+    if source_kind == GenerationSourceKind.panel:
+        panel = session.get(GenerationBoardPanel, source_id)
+        if panel is None:
+            raise ValueError("generation_source_not_found")
+        board = session.get(GenerationBoard, panel.board_id)
+        if board is None or board.project_id != project_id:
+            raise ValueError("generation_source_not_found")
+        return {
+            "kind": source_kind.value,
+            "id": panel.id,
+            "label": panel.title,
+            "slug": f"{board.id}-{panel.order_index}",
+            "board_id": board.id,
+            "board_title": board.title,
+            "image_path": panel.image_path,
+            "image_name": panel.image_name,
+            "caption": panel.caption,
+            "prompt": panel.prompt,
+            "status": panel.status,
+        }
+
     raise ValueError("generation_source_kind_invalid")
 
 
@@ -186,7 +207,13 @@ def _write_svg(path: Path, title: str, subtitle: str, prompt: str, accent: str) 
     _write_text(path, svg)
 
 
-def _source_summary(session: Session, project_id: str, source_kind: GenerationSourceKind, source_id: str) -> dict[str, object]:
+def _source_summary(
+    session: Session,
+    project_id: str,
+    source_kind: GenerationSourceKind,
+    source_id: str,
+    selection_ids: list[str] | None = None,
+) -> dict[str, object]:
     source = _source_or_404(session, project_id, source_kind, source_id)
     if source_kind == GenerationSourceKind.scene:
         scene = session.get(Scene, source_id)
@@ -198,33 +225,67 @@ def _source_summary(session: Session, project_id: str, source_kind: GenerationSo
             "characters_json": deepcopy(scene.characters_json),
             "tags_json": deepcopy(scene.tags_json),
             "content": scene.content,
+            "selection_ids": selection_ids or [],
         }
 
     if source_kind == GenerationSourceKind.chapter:
         chapter = session.get(Chapter, source_id)
         assert chapter is not None
         scenes = list(session.scalars(select(Scene).where(Scene.project_id == project_id, Scene.chapter_id == chapter.id).order_by(Scene.order_index.asc())))
+        if selection_ids:
+            scenes = [scene for scene in scenes if scene.id in selection_ids]
         return {
             **source,
             "summary": chapter.synopsis,
             "order_index": chapter.order_index,
+            "selection_ids": selection_ids or [],
             "scenes": [{"id": scene.id, "title": scene.title, "slug": scene.slug, "summary": scene.summary} for scene in scenes],
+        }
+
+    if source_kind == GenerationSourceKind.panel:
+        panel = session.get(GenerationBoardPanel, source_id)
+        assert panel is not None
+        board = session.get(GenerationBoard, panel.board_id)
+        assert board is not None
+        return {
+            **source,
+            "board": {
+                "id": board.id,
+                "title": board.title,
+                "summary": board.summary,
+                "status": board.status,
+            },
+            "caption": panel.caption,
+            "prompt": panel.prompt,
+            "status": panel.status,
+            "image_path": panel.image_path,
+            "image_name": panel.image_name,
+            "metadata_json": deepcopy(panel.metadata_json),
         }
 
     tome = session.get(Tome, source_id)
     assert tome is not None
     chapters = list(session.scalars(select(Chapter).where(Chapter.project_id == project_id, Chapter.tome_id == tome.id).order_by(Chapter.order_index.asc())))
+    if selection_ids:
+        chapters = [chapter for chapter in chapters if chapter.id in selection_ids]
     return {
         **source,
         "summary": tome.synopsis,
         "order_index": tome.order_index,
+        "selection_ids": selection_ids or [],
         "chapters": [{"id": chapter.id, "title": chapter.title, "slug": chapter.slug, "summary": chapter.synopsis} for chapter in chapters],
     }
 
 
-def _strategy_plan(strategy: GenerationStrategy, source_kind: GenerationSourceKind) -> list[str]:
+def _strategy_plan(strategy: GenerationStrategy, source_kind: GenerationSourceKind, mode: str) -> list[str]:
+    if mode == "grid":
+        return ["source-analysis", "grid-composition", "hero-panel"]
+
     if strategy == GenerationStrategy.direct:
         return ["source-analysis", "prompt-composition", "hero-panel"]
+
+    if source_kind == GenerationSourceKind.panel:
+        return ["source-analysis", "reference-board", "hero-panel"]
 
     if source_kind == GenerationSourceKind.scene:
         return ["source-analysis", "reference-board", "lighting-pass", "hero-panel"]
@@ -233,9 +294,26 @@ def _strategy_plan(strategy: GenerationStrategy, source_kind: GenerationSourceKi
     return ["source-analysis", "overview-board", "character-pass", "environment-pass", "hero-panel", "alt-frame"]
 
 
-def _panel_count(strategy: GenerationStrategy, source_kind: GenerationSourceKind) -> int:
+def _panel_count(
+    strategy: GenerationStrategy,
+    source_kind: GenerationSourceKind,
+    mode: str,
+    selection_ids: list[str],
+    image_count: int | None,
+) -> int:
+    if mode == "grid":
+        return 1
+
     if strategy == GenerationStrategy.direct:
-        return 1 if source_kind == GenerationSourceKind.scene else 2 if source_kind == GenerationSourceKind.chapter else 3
+        if source_kind == GenerationSourceKind.scene:
+            return max(1, image_count or 1)
+        if source_kind == GenerationSourceKind.chapter:
+            return max(1, image_count or len(selection_ids) or 2)
+        if source_kind == GenerationSourceKind.panel:
+            return 1
+        return 3
+    if source_kind == GenerationSourceKind.panel:
+        return 1 if strategy == GenerationStrategy.intermediate else 1
     if source_kind == GenerationSourceKind.scene:
         return 2
     if source_kind == GenerationSourceKind.chapter:
@@ -247,20 +325,140 @@ def _job_title(source: dict[str, object], strategy: GenerationStrategy) -> str:
     return f"{source['label']} · {strategy.value} generation"
 
 
-def _job_prompt(source: dict[str, object], strategy: GenerationStrategy, version: Version | None, provider: ModelProviderConfig) -> str:
+def _job_prompt(
+    source: dict[str, object],
+    strategy: GenerationStrategy,
+    version: Version | None,
+    provider: ModelProviderConfig,
+    mode: str,
+    selection_ids: list[str],
+    grid_rows: int | None,
+    grid_cols: int | None,
+    image_count: int | None,
+) -> str:
     version_clause = f" using version {version.branch_name} #{version.version_index}" if version is not None else " from the current project state"
+    source_clause = ""
+    if source.get("kind") == GenerationSourceKind.panel.value:
+        source_clause = f" based on panel '{source['label']}' from board '{source.get('board_title', 'Unknown board')}'"
+    selection_clause = ""
+    if selection_ids:
+        selection_label = "scene" if source.get("kind") == GenerationSourceKind.chapter.value else "chapter"
+        selection_clause = f" Focus on {len(selection_ids)} selected {selection_label}(s)."
+    mode_clause = ""
+    if mode == "grid":
+        if grid_rows and grid_cols:
+            mode_clause = f" Compose a {grid_rows}x{grid_cols} grid planche."
+        else:
+            mode_clause = " Compose a grid planche."
+    elif mode == "separate":
+        if image_count:
+            mode_clause = f" Generate {image_count} separate images for the selected source set."
+        else:
+            mode_clause = " Generate separate images for the selected source set."
     return (
-        f"Generate {strategy.value} illustration material for {source['kind']} '{source['label']}'"
-        f"{version_clause}. Use the {provider.display_name} entrypoint ({provider.api_model or provider.key}), keep the editorial cabinet mood, and prepare a board suitable for human validation."
+        f"Generate {strategy.value} illustration material for {source['kind']} '{source['label']}'{source_clause}"
+        f"{selection_clause}{version_clause}. Use the {provider.display_name} entrypoint ({provider.api_model or provider.key}), keep the editorial cabinet mood, and prepare a board suitable for human validation.{mode_clause}"
     )
 
 
-def _job_metadata(source: dict[str, object], version: Version | None, strategy: GenerationStrategy, provider: ModelProviderConfig) -> dict[str, object]:
+def _grid_items(source: dict[str, object], source_kind: GenerationSourceKind, selection_ids: list[str]) -> list[dict[str, str]]:
+    if source_kind == GenerationSourceKind.scene:
+        return [{"title": str(source.get("label", "Scene")), "subtitle": str(source.get("summary") or source.get("location") or "Scene")}]
+
+    if source_kind == GenerationSourceKind.chapter:
+        items = [item for item in source.get("scenes", []) if isinstance(item, dict)]
+    elif source_kind == GenerationSourceKind.tome:
+        items = [item for item in source.get("chapters", []) if isinstance(item, dict)]
+    else:
+        items = []
+
+    if selection_ids:
+        items = [item for item in items if item.get("id") in selection_ids]
+
+    return [
+        {"title": str(item.get("title", "Item")), "subtitle": str(item.get("summary") or item.get("slug") or "")}
+        for item in items
+    ]
+
+
+def _grid_artifact(
+    source: dict[str, object],
+    source_kind: GenerationSourceKind,
+    rows: int,
+    cols: int,
+    selection_ids: list[str],
+) -> GeneratedImageArtifact:
+    width = 1200
+    height = 1600
+    items = _grid_items(source, source_kind, selection_ids)
+    if not items:
+        items = [{"title": str(source.get("label", "Grid")), "subtitle": str(source.get("summary") or source.get("prompt") or "Grid planche")}]
+
+    cells = max(1, rows * cols)
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-label="{escape(str(source.get("label", "Grid")), quote=True)} grid">',
+        '  <defs>',
+        '    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">',
+        '      <stop offset="0%" stop-color="#f8f1e7" />',
+        '      <stop offset="100%" stop-color="#e7d9c3" />',
+        '    </linearGradient>',
+        '  </defs>',
+        '  <rect width="1200" height="1600" rx="72" fill="url(#bg)" />',
+        '  <text x="120" y="180" fill="#3d2816" font-size="54" font-family="Georgia, serif" letter-spacing="6">KUTI GRID</text>',
+        f'  <text x="120" y="260" fill="#1d1712" font-size="76" font-family="Georgia, serif" font-weight="700">{escape(str(source.get("label", "Grid")), quote=True)}</text>',
+    ]
+
+    top = 320
+    left = 90
+    cell_w = 1020 / max(1, cols)
+    cell_h = 1060 / max(1, rows)
+    palette = ["#8c5a2b", "#3d2816", "#b47a44", "#6f7d8d", "#5d6b3a", "#8d4f70"]
+    for index in range(cells):
+        row = index // max(1, cols)
+        col = index % max(1, cols)
+        x = left + col * cell_w
+        y = top + row * cell_h
+        item = items[index % len(items)]
+        accent = palette[index % len(palette)]
+        title = escape(item["title"], quote=True)
+        subtitle = escape(item.get("subtitle", ""), quote=True)
+        lines.extend([
+            f'  <rect x="{x:.1f}" y="{y:.1f}" width="{cell_w - 18:.1f}" height="{cell_h - 18:.1f}" rx="24" fill="#fffaf2" opacity="0.92" stroke="#7b5b3d" stroke-width="2" />',
+            f'  <rect x="{x + 16:.1f}" y="{y + 16:.1f}" width="48" height="48" rx="12" fill="{accent}" />',
+            f'  <text x="{x + 80:.1f}" y="{y + 48:.1f}" fill="#1d1712" font-size="28" font-family="Arial, sans-serif" font-weight="700">{title}</text>',
+            f'  <foreignObject x="{x + 24:.1f}" y="{y + 88:.1f}" width="{cell_w - 66:.1f}" height="{cell_h - 110:.1f}">',
+            f'    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,sans-serif;font-size:24px;line-height:1.35;color:#2b2118;white-space:pre-wrap;">{subtitle}</div>',
+            '  </foreignObject>',
+        ])
+
+    lines.extend([
+        '  <text x="120" y="1450" fill="#6b5746" font-size="28" font-family="Arial, sans-serif">Grid planche generated locally</text>',
+        '</svg>',
+    ])
+    return GeneratedImageArtifact(content="\n".join(lines).encode("utf-8"), mime_type="image/svg+xml", file_extension=".svg")
+
+
+def _job_metadata(
+    source: dict[str, object],
+    version: Version | None,
+    strategy: GenerationStrategy,
+    provider: ModelProviderConfig,
+    mode: str,
+    selection_ids: list[str],
+    grid_rows: int | None,
+    grid_cols: int | None,
+    image_count: int | None,
+) -> dict[str, object]:
     metadata: dict[str, object] = {
         "source": source,
         "strategy": strategy.value,
+        "mode": mode,
         "entrypoint": provider.api_model or provider.key,
         "model_key": provider.key,
+        "selection_ids": selection_ids,
+        "grid_rows": grid_rows,
+        "grid_cols": grid_cols,
+        "image_count": image_count,
     }
     if version is not None:
         metadata["source_version"] = {
@@ -270,6 +468,17 @@ def _job_metadata(source: dict[str, object], version: Version | None, strategy: 
             "label": version.label,
             "summary": version.summary,
             "created_at": version.created_at.isoformat(),
+        }
+    if source.get("kind") == GenerationSourceKind.panel.value:
+        metadata["source_panel"] = {
+            "id": source.get("id"),
+            "board_id": source.get("board_id"),
+            "board_title": source.get("board_title"),
+            "image_path": source.get("image_path"),
+            "image_name": source.get("image_name"),
+            "caption": source.get("caption"),
+            "prompt": source.get("prompt"),
+            "status": source.get("status"),
         }
     return metadata
 
@@ -303,6 +512,30 @@ def _scene_snapshot_artifact(source: dict[str, object]) -> GeneratedImageArtifac
     return GeneratedImageArtifact(content=_build_scene_snapshot_png(source), mime_type="image/png", file_extension=".png")
 
 
+def _source_reference_artifact(source: dict[str, object]) -> GeneratedImageArtifact | None:
+    if source.get("kind") == GenerationSourceKind.scene.value:
+        return _scene_snapshot_artifact(source)
+
+    if source.get("kind") != GenerationSourceKind.panel.value:
+        return None
+
+    image_path = source.get("image_path")
+    if not isinstance(image_path, str) or not image_path.strip():
+        return None
+
+    path = Path(image_path)
+    if not path.exists() or not path.is_file():
+        return None
+
+    mime_type = None
+    image_name = source.get("image_name")
+    if isinstance(image_name, str) and image_name.strip():
+        mime_type = mimetypes.guess_type(image_name)[0]
+    mime_type = mime_type or _payload_mime_type({"mime_type": source.get("mime_type")}) or "image/png"
+    file_extension = path.suffix or mimetypes.guess_extension(mime_type, strict=False) or ".png"
+    return GeneratedImageArtifact(content=path.read_bytes(), mime_type=mime_type, file_extension=file_extension)
+
+
 def _panel_prompt(job_prompt: str, source: dict[str, object], panel_index: int, panel_total: int) -> str:
     return (
         f"{job_prompt}\n\n"
@@ -316,12 +549,22 @@ def _panel_artifact(
     job_prompt: str,
     source: dict[str, object],
     source_kind: GenerationSourceKind,
+    mode: str,
+    selection_ids: list[str],
+    grid_rows: int | None,
+    grid_cols: int | None,
     panel_index: int,
     panel_total: int,
 ) -> tuple[Path, dict[str, object], GeneratedImageArtifact | None]:
     panel_prompt = _panel_prompt(job_prompt, source, panel_index, panel_total)
+    if mode == "grid":
+        rows = grid_rows or 2
+        cols = grid_cols or max(1, panel_total)
+        artifact = _grid_artifact(source, source_kind, rows, cols, selection_ids)
+        return Path(f"panel-{panel_index}{artifact.file_extension}"), {"mime_type": artifact.mime_type, "provider": "local-grid"}, artifact
+
     if provider.kind in {ModelKind.image, ModelKind.video}:
-        source_image = _scene_snapshot_artifact(source) if provider.key == ModelKey.sora_2.value and source_kind == GenerationSourceKind.scene else None
+        source_image = _source_reference_artifact(source) if provider.key in {ModelKey.sora_2.value, ModelKey.seedance_2.value} and source_kind in {GenerationSourceKind.scene, GenerationSourceKind.panel} else None
         artifact = generate_media_artifact(provider, panel_prompt, source_image=source_image)
         suffix = artifact.file_extension if artifact.file_extension.startswith(".") else f".{artifact.file_extension}"
         metadata = {"mime_type": artifact.mime_type, "provider": provider.key}
@@ -423,7 +666,7 @@ def create_generation_job(session: Session, settings: Settings, project_id: str,
     project = _project_or_404(session, project_id)
     source_kind = GenerationSourceKind(payload.source_kind)
     strategy = GenerationStrategy(payload.strategy)
-    source = _source_or_404(session, project_id, source_kind, payload.source_id)
+    source = _source_summary(session, project_id, source_kind, payload.source_id, payload.selection_ids)
     version = _version_or_404(session, project_id, payload.source_version_id)
     model = _select_model(settings, payload.model_key)
     model_payload = model.public_dict()
@@ -439,11 +682,24 @@ def create_generation_job(session: Session, settings: Settings, project_id: str,
         strategy=strategy.value,
         entrypoint=entrypoint,
         title=payload.title or _job_title(source, strategy),
-        prompt=_job_prompt(source, strategy, version, model),
+        prompt=_job_prompt(source, strategy, version, model, payload.mode, payload.selection_ids, payload.grid_rows, payload.grid_cols, payload.image_count),
         summary=payload.summary,
         status=GenerationJobStatus.running.value,
         progress=15,
-        metadata_json={**_job_metadata(source, version, strategy, model), "model": model_payload},
+        metadata_json={
+            **_job_metadata(
+                source,
+                version,
+                strategy,
+                model,
+                payload.mode,
+                payload.selection_ids,
+                payload.grid_rows,
+                payload.grid_cols,
+                payload.image_count,
+            ),
+            "model": model_payload,
+        },
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
@@ -454,7 +710,12 @@ def create_generation_job(session: Session, settings: Settings, project_id: str,
     prompt_path = root / "prompt.txt"
     _write_text(prompt_path, job.prompt)
 
-    steps_payload = _job_steps(_strategy_plan(strategy, source_kind), job.prompt, source, _panel_count(strategy, source_kind))
+    steps_payload = _job_steps(
+        _strategy_plan(strategy, source_kind, payload.mode),
+        job.prompt,
+        source,
+        _panel_count(strategy, source_kind, payload.mode, payload.selection_ids, payload.image_count),
+    )
     step_records: list[GenerationJobStep] = []
     for item in steps_payload:
         step_id = str(uuid4())
@@ -499,14 +760,25 @@ def create_generation_job(session: Session, settings: Settings, project_id: str,
     session.add(board)
     session.flush()
 
-    panel_total = _panel_count(strategy, source_kind)
+    panel_total = _panel_count(strategy, source_kind, payload.mode, payload.selection_ids, payload.image_count)
     panel_sources = step_records[-panel_total:] if len(step_records) >= panel_total else step_records
     panels_payload: list[dict[str, object]] = []
     for index in range(panel_total):
         step_ref = panel_sources[min(index, len(panel_sources) - 1)] if panel_sources else None
         panel_id = str(uuid4())
         panel_title = f"Panel {index + 1}"
-        panel_rel_path, panel_metadata, panel_artifact = _panel_artifact(model, job.prompt, source, source_kind, index + 1, panel_total)
+        panel_rel_path, panel_metadata, panel_artifact = _panel_artifact(
+            model,
+            job.prompt,
+            source,
+            source_kind,
+            payload.mode,
+            payload.selection_ids,
+            payload.grid_rows,
+            payload.grid_cols,
+            index + 1,
+            panel_total,
+        )
         panel_path = board_root / panel_rel_path
         if panel_artifact is None:
             accent = ["#8c5a2b", "#3d2816", "#b47a44", "#6f7d8d"][index % 4]

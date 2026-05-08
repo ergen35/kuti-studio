@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from kuti_backend.generation.models import GenerationSourceKind
+
 
 class ModelProviderRead(BaseModel):
     key: str
@@ -16,11 +18,16 @@ class ModelProviderRead(BaseModel):
 
 
 class GenerationJobCreate(BaseModel):
-    source_kind: str
+    source_kind: GenerationSourceKind
     source_id: str
     source_version_id: str | None = None
     strategy: str = Field(default="direct")
     model_key: str | None = None
+    mode: str = Field(default="separate")
+    selection_ids: list[str] = Field(default_factory=list)
+    grid_rows: int | None = None
+    grid_cols: int | None = None
+    image_count: int | None = None
     title: str | None = None
     summary: str = ""
 
@@ -79,7 +86,7 @@ class GenerationBoardRead(BaseModel):
     id: str
     project_id: str
     job_id: str
-    source_kind: str
+    source_kind: GenerationSourceKind
     strategy: str
     title: str
     summary: str
@@ -98,7 +105,7 @@ class GenerationJobRead(BaseModel):
 
     id: str
     project_id: str
-    source_kind: str
+    source_kind: GenerationSourceKind
     source_id: str
     source_label: str
     source_version_id: str | None

@@ -19,6 +19,8 @@ import {
   updateScene,
   updateTome,
   type ChapterRead,
+  type GenerationMode,
+  type GenerationSourceKind,
   type SceneRead,
   type StoryReferenceRead,
   type StorySuggestionRead,
@@ -61,6 +63,21 @@ function parseOrder(value: FormDataEntryValue | null) {
 function parseStatus(value: FormDataEntryValue | null) {
   const candidate = String(value ?? "active");
   return candidate === "draft" || candidate === "archived" ? candidate : "active";
+}
+
+function generationSearch(
+  projectId: string,
+  options: {
+    sourceKind: GenerationSourceKind;
+    sourceId: string;
+    mode?: GenerationMode;
+  },
+) {
+  const params = new URLSearchParams();
+  params.set("sourceKind", options.sourceKind);
+  params.set("sourceId", options.sourceId);
+  params.set("mode", options.mode ?? (options.sourceKind === "scene" ? "separate" : "grid"));
+  return `/projects/${projectId}/generation?${params.toString()}`;
 }
 
 function buildStoryFormResult(formData: FormData): StoryFormResult {
@@ -528,6 +545,24 @@ export function StoryRoute() {
               <p className="eyebrow">Chapters and scenes</p>
               <h4>{selectedTome?.title ?? "Select a tome"}</h4>
             </div>
+            <div className="project-actions">
+              {selectedChapter ? (
+                <Link
+                  className="button button-secondary"
+                  to={generationSearch(projectId, { sourceKind: "chapter", sourceId: selectedChapter.id, mode: "grid" })}
+                >
+                  Generate chapter images
+                </Link>
+              ) : null}
+              {selectedTome ? (
+                <Link
+                  className="button button-secondary"
+                  to={generationSearch(projectId, { sourceKind: "tome", sourceId: selectedTome.id, mode: "grid" })}
+                >
+                  Generate tome images
+                </Link>
+              ) : null}
+            </div>
           </div>
 
           <div className="story-columns">
@@ -594,15 +629,27 @@ export function StoryRoute() {
         <Card>
           {selectedScene ? (
             <div className="editor-stack story-editor">
-              <div className="section-head">
-                <div>
-                  <p className="eyebrow">Selected scene</p>
-                  <h4>{selectedScene.title}</h4>
-                </div>
-                <div className="project-actions">
-                  <button className="button" type="button" onClick={() => sceneDeleteMutation.mutate(selectedScene.id)}>Delete</button>
-                </div>
-              </div>
+               <div className="section-head">
+                 <div>
+                   <p className="eyebrow">Selected scene</p>
+                   <h4>{selectedScene.title}</h4>
+                 </div>
+                 <div className="project-actions">
+                   <Link
+                     className="button button-secondary"
+                     to={generationSearch(projectId, { sourceKind: "scene", sourceId: selectedScene.id, mode: "separate" })}
+                   >
+                     Generate scene images
+                   </Link>
+                   <Link
+                     className="button button-secondary"
+                     to={generationSearch(projectId, { sourceKind: "scene", sourceId: selectedScene.id, mode: "grid" })}
+                   >
+                     Generate scene grid
+                   </Link>
+                   <button className="button" type="button" onClick={() => sceneDeleteMutation.mutate(selectedScene.id)}>Delete</button>
+                 </div>
+               </div>
 
               <form key={selectedScene.id} className="form-grid" onSubmit={(event) => handleSceneUpdate(event, selectedScene)}>
                 <div className="form-grid-two">

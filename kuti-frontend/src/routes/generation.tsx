@@ -17,6 +17,7 @@ import {
   listVersions,
   updateGenerationPanel,
   validateGenerationBoard,
+  type GenerationMode,
   type ModelProviderRead,
   type GenerationBoardPanelRead,
   type GenerationBoardRead,
@@ -43,6 +44,14 @@ const sourceKindLabels: Record<GenerationSourceKind, string> = {
   scene: "Scene",
   chapter: "Chapter",
   tome: "Tome",
+  panel: "Panel",
+};
+
+const sourceKindModelKinds: Record<GenerationSourceKind, string[]> = {
+  scene: ["image"],
+  chapter: ["image"],
+  tome: ["image"],
+  panel: ["video", "image"],
 };
 
 const panelStatusLabels: Record<GenerationPanelStatus, string> = {
@@ -122,9 +131,12 @@ export function GenerationRoute() {
   const selectedJobId = searchParams.get("jobId");
   const selectedBoardId = searchParams.get("boardId");
   const selectedPanelId = searchParams.get("panelId");
-  const [sourceKind, setSourceKind] = useState<GenerationSourceKind>("scene");
+  const querySourceKind = searchParams.get("sourceKind") as GenerationSourceKind | null;
+  const querySourceId = searchParams.get("sourceId") ?? "";
+  const queryMode = searchParams.get("mode") as GenerationMode | null;
+  const [sourceKind, setSourceKind] = useState<GenerationSourceKind>(querySourceKind ?? "scene");
   const [strategy, setStrategy] = useState<GenerationStrategy>("direct");
-  const [selectedSourceId, setSelectedSourceId] = useState("");
+  const [selectedSourceId, setSelectedSourceId] = useState(querySourceId);
   const [selectedVersionId, setSelectedVersionId] = useState<string>("");
   const [selectedModelKey, setSelectedModelKey] = useState<string>("");
 
@@ -159,21 +171,33 @@ export function GenerationRoute() {
 
   const sourceOptions = useMemo(() => {
     const story = storyQuery.data;
-    if (!story) return { scene: [] as SourceOption[], chapter: [] as SourceOption[], tome: [] as SourceOption[] };
+    const panelOptions = (boardsQuery.data ?? []).flatMap((board) =>
+      board.panels.map((panel) => ({
+        id: panel.id,
+        label: `${board.title} · ${panel.title}`,
+        subtitle: panel.caption || panel.prompt || panel.image_name,
+        kind: "panel" as const,
+      })),
+    );
+    if (!story) return { scene: [] as SourceOption[], chapter: [] as SourceOption[], tome: [] as SourceOption[], panel: panelOptions };
     return {
       scene: story.scenes.map((scene) => ({ id: scene.id, label: scene.title, subtitle: scene.summary || scene.slug, kind: "scene" as const })),
       chapter: story.chapters.map((chapter) => ({ id: chapter.id, label: chapter.title, subtitle: chapter.synopsis || chapter.slug, kind: "chapter" as const })),
       tome: story.tomes.map((tome) => ({ id: tome.id, label: tome.title, subtitle: tome.synopsis || tome.slug, kind: "tome" as const })),
+      panel: panelOptions,
     };
-  }, [storyQuery.data]);
+  }, [boardsQuery.data, storyQuery.data]);
 
   const allSources = sourceOptions[sourceKind];
   const jobs = jobsQuery.data ?? [];
   const boards = boardsQuery.data ?? [];
-  const imageModels = useMemo(() => (modelsQuery.data ?? []).filter((model) => model.kind === "image"), [modelsQuery.data]);
-  const configuredImageModels = useMemo(
-    () => imageModels.filter((model) => model.enabled && model.configured),
-    [imageModels],
+  const availableModels = useMemo(
+    () => (modelsQuery.data ?? []).filter((model) => sourceKindModelKinds[sourceKind].includes(model.kind)),
+    [modelsQuery.data, sourceKind],
+  );
+  const configuredModels = useMemo(
+    () => availableModels.filter((model) => model.enabled && model.configured),
+    [availableModels],
   );
 
   const selectedJob = useMemo(() => {
@@ -230,11 +254,43 @@ export function GenerationRoute() {
   }, [selectedVersionId, versionsQuery.data]);
 
   useEffect(() => {
-    const preferred = configuredImageModels[0] ?? imageModels[0];
+    const preferred = configuredModels[0] ?? availableModels[0];
     if (preferred && preferred.key !== selectedModelKey) {
       setSelectedModelKey(preferred.key);
     }
-  }, [configuredImageModels, imageModels, selectedModelKey]);
+  }, [availableModels, configuredModels, selectedModelKey]);
+
+  useEffect(() => {
+    if (querySourceKind && querySourceKind !== sourceKind) {
+      setSourceKind(querySourceKind);
+    }
+  }, [querySourceKind, sourceKind]);
+
+  useEffect(() => {
+    if (querySourceId && querySourceId !== selectedSourceId) {
+      setSelectedSourceId(querySourceId);
+    }
+  }, [querySourceId, selectedSourceId]);
+
+  const selectedMode: GenerationMode = sourceKind === "scene" ? (queryMode ?? "separate") : "grid";
+
+  const selectedSelectionIds = useMemo(() => {
+    if (!storyQuery.data || !selectedSourceId) return [];
+    if (sourceKind === "chapter") {
+      return storyQuery.data.scenes.filter((scene) => scene.chapter_id === selectedSourceId).map((scene) => scene.id);
+    }
+    if (sourceKind === "tome") {
+      return storyQuery.data.chapters.filter((chapter) => chapter.tome_id === selectedSourceId).map((chapter) => chapter.id);
+    }
+    return [];
+  }, [selectedSourceId, sourceKind, storyQuery.data]);
+
+  const selectedGridShape = useMemo(() => {
+    const count = sourceKind === "scene" ? 1 : Math.max(1, selectedSelectionIds.length);
+    const rows = Math.max(1, Math.round(Math.sqrt(count)));
+    const cols = Math.max(1, Math.ceil(count / rows));
+    return { rows, cols };
+  }, [selectedSelectionIds.length, sourceKind]);
 
   const refreshGeneration = async () => {
     await queryClient.invalidateQueries({ queryKey: ["generation-jobs", projectId] });
@@ -277,6 +333,11 @@ export function GenerationRoute() {
       source_version_id: selectedVersionId || undefined,
       strategy,
       model_key: selectedModelKey || undefined,
+      mode: selectedMode,
+      selection_ids: selectedSelectionIds,
+      grid_rows: selectedMode === "grid" ? selectedGridShape.rows : undefined,
+      grid_cols: selectedMode === "grid" ? selectedGridShape.cols : undefined,
+      image_count: selectedMode === "separate" ? (sourceKind === "scene" ? 3 : selectedSelectionIds.length || undefined) : undefined,
       title: normalizeText(formData.get("title")) || undefined,
       summary: normalizeText(formData.get("summary")),
     });
@@ -293,7 +354,7 @@ export function GenerationRoute() {
           <p className="eyebrow">Phase 8</p>
           <h3>Generation studio</h3>
           <p className="muted max-width">
-            Launch scene, chapter, or tome based generation jobs, inspect the intermediate steps, and validate the resulting board locally.
+            Launch scene, chapter, tome, or panel based generation jobs, inspect the intermediate steps, and validate the resulting board locally.
           </p>
         </div>
         <div className="hero-card generation-hero-card">
@@ -320,18 +381,32 @@ export function GenerationRoute() {
           </div>
 
           <div className="project-actions generation-tabs">
-            {(["scene", "chapter", "tome"] as GenerationSourceKind[]).map((kind) => (
+            {(["scene", "chapter", "tome", "panel"] as GenerationSourceKind[]).map((kind) => (
               <button key={kind} type="button" className={`button ${sourceKind === kind ? "button-primary" : "button-secondary"}`} onClick={() => setSourceKind(kind)}>
                 {sourceKindLabels[kind]}
               </button>
             ))}
           </div>
 
+          <div className="stacked-card">
+            <p className="eyebrow">Mode</p>
+            <h4>{selectedMode === "grid" ? "Grid planche" : "Separate images"}</h4>
+            <p className="muted">
+              {sourceKind === "scene"
+                ? "Scene sources can be rendered as separate candidates or as a compact grid planche."
+                : "Chapter and tome sources generate a grid planche from the selected child items."}
+            </p>
+          </div>
+
           <div className="generation-source-list">
             {allSources.length ? (
               allSources.map((option) => <SourceCard key={option.id} option={option} selected={option.id === selectedSourceId} onSelect={setSelectedSourceId} />)
             ) : (
-              <p className="muted">No {sourceKindLabels[sourceKind].toLowerCase()}s are available yet.</p>
+              <p className="muted">
+                {sourceKind === "panel"
+                  ? "No generated panels are available yet. Create a board first to reuse its panels as video or audio sources."
+                  : `No ${sourceKindLabels[sourceKind].toLowerCase()}s are available yet.`}
+              </p>
             )}
           </div>
 
@@ -367,23 +442,23 @@ export function GenerationRoute() {
             </div>
 
             <label>
-              Image model
+              Model
               <select value={selectedModelKey} onChange={(event) => setSelectedModelKey(event.currentTarget.value)}>
-                {imageModels.length ? (
-                  imageModels.map((model: ModelProviderRead) => (
+                {availableModels.length ? (
+                  availableModels.map((model: ModelProviderRead) => (
                     <option key={model.key} value={model.key} disabled={!model.enabled || !model.configured}>
                       {model.display_name} {model.enabled ? (model.configured ? "" : "(unconfigured)") : "(disabled)"}
                     </option>
                   ))
                 ) : (
-                  <option value="">No image models available</option>
+                  <option value="">No compatible models available</option>
                 )}
               </select>
             </label>
 
             <div className="generation-model-grid">
-              {imageModels.length ? (
-                imageModels.map((model) => (
+              {availableModels.length ? (
+                availableModels.map((model) => (
                   <div key={model.key} className={`stacked-card generation-model-card ${selectedModelKey === model.key ? "is-selected" : ""}`}>
                     <div className="section-head">
                       <div>
@@ -400,7 +475,7 @@ export function GenerationRoute() {
                   </div>
                 ))
               ) : (
-                <p className="muted">No image model providers are configured yet.</p>
+                <p className="muted">No compatible model providers are configured yet.</p>
               )}
             </div>
 
@@ -414,11 +489,11 @@ export function GenerationRoute() {
               <textarea name="summary" rows={3} placeholder="Why this board is being generated" />
             </label>
 
-            <button className="button button-primary" type="submit" disabled={createMutation.isPending || !selectedSourceId || !configuredImageModels.length}>
+            <button className="button button-primary" type="submit" disabled={createMutation.isPending || !selectedSourceId || !configuredModels.length}>
               {createMutation.isPending ? "Generating..." : "Generate board"}
             </button>
-            {!configuredImageModels.length ? (
-              <p className="muted">Configure at least one image model with a base URL and API key before creating a job.</p>
+            {!configuredModels.length ? (
+              <p className="muted">Configure at least one compatible model with a base URL and API key before creating a job.</p>
             ) : null}
           </form>
         </Card>

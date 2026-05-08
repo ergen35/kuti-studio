@@ -13,6 +13,7 @@ class GenerationSourceKind(StrEnum):
     scene = "scene"
     chapter = "chapter"
     tome = "tome"
+    panel = "panel"
 
 
 class GenerationStrategy(StrEnum):
