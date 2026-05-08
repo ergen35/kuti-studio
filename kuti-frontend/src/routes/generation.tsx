@@ -27,6 +27,7 @@ import {
   type GenerationPanelStatus,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { useT } from "@/lib/i18n";
 
 type SourceOption = {
   id: string;
@@ -126,6 +127,7 @@ function PanelCard({ board, panel, selected, onSelect }: { board: GenerationBoar
 
 export function GenerationRoute() {
   const { projectId } = useParams();
+  const t = useT();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedJobId = searchParams.get("jobId");
@@ -366,7 +368,7 @@ export function GenerationRoute() {
       <div className="hero generation-hero">
         <div>
           <p className="eyebrow">Phase 8</p>
-          <h3>Generation studio</h3>
+          <h3>{t("generationStudio")}</h3>
           <p className="muted max-width">
             Launch scene, chapter, tome, or panel based generation jobs, inspect the intermediate steps, and validate the resulting board locally.
           </p>
@@ -380,7 +382,7 @@ export function GenerationRoute() {
 
       <div className="story-toolbar">
         <Link to={`/projects/${projectId}`} className="button button-secondary">
-          Back to dashboard
+          {t("backToDashboard")}
         </Link>
         <div className="asset-toolbar-note muted">Use the form to create a local job, then validate the generated board or individual panels.</div>
       </div>
@@ -402,11 +404,11 @@ export function GenerationRoute() {
             ))}
           </div>
 
-          <div className="stacked-card">
-            <p className="eyebrow">Mode</p>
-            <h4>{selectedMode === "grid" ? "Grid planche" : "Separate images"}</h4>
-            <p className="muted">
-              {sourceKind === "scene"
+            <div className="stacked-card">
+              <p className="eyebrow">Mode</p>
+              <h4>{selectedMode === "grid" ? "Grid planche" : "Separate images"}</h4>
+              <p className="muted">
+                {sourceKind === "scene"
                 ? "Scene sources can be rendered as separate candidates or as a compact grid planche."
                 : "Chapter and tome sources generate a grid planche from the selected child items."}
             </p>
@@ -430,7 +432,7 @@ export function GenerationRoute() {
             <div className="form-head">
               <div>
                 <p className="eyebrow">Launch job</p>
-                <h4>Create generation</h4>
+                <h4>{t("generating")}</h4>
               </div>
             </div>
 
@@ -493,10 +495,10 @@ export function GenerationRoute() {
               )}
             </div>
 
-            <label>
-              Title
-              <input name="title" placeholder="Chapter 4 board" />
-            </label>
+              <label>
+                Title
+                <input name="title" placeholder="Chapter 4 board" />
+              </label>
 
             <label>
               Summary
@@ -504,7 +506,7 @@ export function GenerationRoute() {
             </label>
 
             <button className="button button-primary" type="submit" disabled={createMutation.isPending || !selectedSourceId || !configuredModels.length}>
-              {createMutation.isPending ? "Generating..." : "Generate board"}
+              {createMutation.isPending ? t("generating") : "Generate board"}
             </button>
             {!configuredModels.length ? (
               <p className="muted">Configure at least one compatible model with a base URL and API key before creating a job.</p>

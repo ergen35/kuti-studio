@@ -3,10 +3,12 @@ import { Link, useParams } from "react-router-dom";
 
 import { archiveProject, getProject, openProject } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { useT } from "@/lib/i18n";
 
 export function ProjectRoute() {
   const { projectId } = useParams();
   const queryClient = useQueryClient();
+  const t = useT();
   const projectQuery = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => getProject(projectId ?? ""),
@@ -36,51 +38,51 @@ export function ProjectRoute() {
   return (
     <div className="page-stack">
       <Card>
-        <p className="eyebrow">Project Dashboard</p>
+        <p className="eyebrow">{t("projectDashboard")}</p>
         <h3>{projectQuery.data?.name ?? "Loading project..."}</h3>
         <p className="muted">{projectQuery.data?.root_path ?? "Fetching project metadata from the local API."}</p>
         <div className="project-actions">
           <button className="button" type="button" onClick={() => openMutation.mutate()}>
-            Mark open
+            {t("markOpen")}
           </button>
           <button className="button button-ghost" type="button" onClick={() => archiveMutation.mutate()}>
-            Archive
+            {t("archive")}
           </button>
           <Link to={`/projects/${projectId}/story`} className="button button-secondary">
-            Storyline
+            {t("storyline")}
           </Link>
           <Link to={`/projects/${projectId}/assets`} className="button button-secondary">
-            Assets
+            {t("assetsLibrary")}
           </Link>
           <Link to={`/projects/${projectId}/generation`} className="button button-secondary">
-            Generation
+            {t("generationStudio")}
           </Link>
           <Link to={`/projects/${projectId}/exports`} className="button button-secondary">
-            Exports
+            {t("exports")}
           </Link>
           <Link to={`/projects/${projectId}/versions`} className="button button-secondary">
-            Versions
+            {t("versioning")}
           </Link>
           <Link to={`/projects/${projectId}/warnings`} className="button button-secondary">
-            Warnings
+            {t("warnings")}
           </Link>
           <Link to={`/projects/${projectId}/characters`} className="button button-secondary">
             Characters
           </Link>
           <Link to={`/projects/${projectId}/settings`} className="button button-secondary">
-            Settings
+            {t("settings")}
           </Link>
         </div>
       </Card>
 
       <div className="grid-2">
         <Card>
-          <p className="eyebrow">Status</p>
+          <p className="eyebrow">{t("projectDashboard")}</p>
           <h4>{projectQuery.data?.status ?? "-"}</h4>
-          <p className="muted">Open the project for editing and dashboard tracking.</p>
+          <p className="muted">{t("projectSummary")}</p>
         </Card>
         <Card>
-          <p className="eyebrow">Storage</p>
+          <p className="eyebrow">{t("storage")}</p>
           <h4>{projectQuery.data?.slug ?? "-"}</h4>
           <p className="muted">Project data is stored locally and mirrored into `kuti-data`.</p>
         </Card>

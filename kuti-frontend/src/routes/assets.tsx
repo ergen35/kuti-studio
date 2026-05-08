@@ -21,6 +21,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { Card } from "@/components/ui/card";
+import { useT } from "@/lib/i18n";
 
 function normalizeText(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
@@ -67,6 +68,7 @@ function AssetLinkItem({ link, onDelete }: { link: AssetLinkRead; onDelete: (id:
 export function AssetsRoute() {
   const { projectId } = useParams();
   const queryClient = useQueryClient();
+  const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedAssetId = searchParams.get("assetId");
   const [targetKind, setTargetKind] = useState<"character" | "tome" | "chapter" | "scene">("character");
@@ -248,7 +250,7 @@ export function AssetsRoute() {
       <div className="hero story-hero">
         <div>
           <p className="eyebrow">Phase 4</p>
-          <h3>Asset library vault</h3>
+          <h3>{t("assetsLibrary")}</h3>
           <p className="muted max-width">
             Import local files into the project, track usage links, and keep the media archive tied to the same portable
             workspace as story and character data.
@@ -262,9 +264,7 @@ export function AssetsRoute() {
       </div>
 
       <div className="story-toolbar">
-        <Link to={`/projects/${projectId}`} className="button button-secondary">
-          Back to dashboard
-        </Link>
+        <Link to={`/projects/${projectId}`} className="button button-secondary">{t("backToDashboard")}</Link>
         <div className="asset-toolbar-note muted">Imports copy files into `kuti-data` and preserve the original filename.</div>
       </div>
 
@@ -273,7 +273,7 @@ export function AssetsRoute() {
           <div className="section-head">
             <div>
               <p className="eyebrow">Assets</p>
-              <h4>Library index</h4>
+              <h4>{t("assetsLibrary")}</h4>
             </div>
           </div>
 
@@ -331,10 +331,10 @@ export function AssetsRoute() {
                 <textarea name="tags_json" rows={3} placeholder="reference\ncover\nscan" />
               </label>
             </div>
-            <button className="button button-primary" type="submit">
-              Import asset
-            </button>
-          </form>
+              <button className="button button-primary" type="submit">
+                Import asset
+              </button>
+            </form>
         </Card>
 
         <Card>

@@ -27,6 +27,7 @@ import {
   type TomeRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { useT } from "@/lib/i18n";
 
 type StoryFormResult = {
   title: string;
@@ -160,6 +161,7 @@ function SuggestionCard({ suggestion }: { suggestion: StorySuggestionRead }) {
 export function StoryRoute() {
   const { projectId } = useParams();
   const queryClient = useQueryClient();
+  const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const storyQuery = useQuery({
@@ -463,7 +465,7 @@ export function StoryRoute() {
       <div className="hero story-hero">
         <div>
           <p className="eyebrow">Phase 3</p>
-          <h3>Storyline atlas</h3>
+          <h3>{t("storyline")}</h3>
           <p className="muted max-width">
             Build tomes, chapters, and scenes in a structured hierarchy. The editor keeps references visible,
             surfaces orphans, and stays local-first for fast iteration.
@@ -477,7 +479,7 @@ export function StoryRoute() {
       </div>
 
       <div className="story-toolbar">
-        <Link to={`/projects/${projectId}`} className="button button-secondary">Back to dashboard</Link>
+        <Link to={`/projects/${projectId}`} className="button button-secondary">{t("backToDashboard")}</Link>
         <form className="inline-form story-search" onSubmit={(event) => event.preventDefault()}>
           <input
             name="suggest"
@@ -491,18 +493,18 @@ export function StoryRoute() {
               });
             }}
           />
-          <button
-            className="button button-ghost"
-            type="button"
+            <button
+              className="button button-ghost"
+              type="button"
             onClick={() =>
               replaceSearchParams((params) => {
                 params.delete("suggest");
               })
             }
-          >
-            Clear
-          </button>
-        </form>
+            >
+              {t("clearFilters")}
+            </button>
+          </form>
       </div>
 
       <div className="story-layout">

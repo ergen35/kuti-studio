@@ -2,52 +2,54 @@ import { Link, Outlet } from "react-router-dom";
 
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LocaleToggle } from "@/components/ui/locale-toggle";
+import { useT } from "@/lib/i18n";
 import { useUIStore } from "@/stores/ui";
 
 export function AppShell() {
   const theme = useUIStore((state) => state.theme);
+  const t = useT();
 
   return (
     <div className={`app-shell theme-${theme}`}>
       <aside className="sidebar">
         <div className="brand-block">
-          <p className="eyebrow">Kuti Studio</p>
-          <h1>Local narrative production</h1>
+          <p className="eyebrow">{t("appTitle")}</p>
+          <h1>{t("appTagline")}</h1>
           <p className="muted">
-            Phase 0 scaffold: backend contract, UI shell, and project-wide context.
+            {t("appDescription")}
           </p>
         </div>
 
-        <nav className="nav-links" aria-label="Primary navigation">
+        <nav className="nav-links" aria-label={t("primaryNavigation")}> 
           <Link to="/" className="nav-link">
-            Project Hub
+            {t("projectHub")}
           </Link>
           <Link to="/projects/demo-project" className="nav-link">
-            Project Dashboard
+            {t("projectDashboard")}
           </Link>
           <Link to="/projects/demo-project/assets" className="nav-link">
-            Assets Library
+            {t("assetsLibrary")}
           </Link>
           <Link to="/projects/demo-project/generation" className="nav-link">
-            Generation Studio
+            {t("generationStudio")}
           </Link>
           <Link to="/projects/demo-project/exports" className="nav-link">
-            Exports
+            {t("exports")}
           </Link>
           <Link to="/projects/demo-project/versions" className="nav-link">
-            Versioning
+            {t("versioning")}
           </Link>
           <Link to="/projects/demo-project/warnings" className="nav-link">
-            Warnings
+            {t("warnings")}
           </Link>
           <Link to="/projects/demo-project/story" className="nav-link">
-            Storyline
+            {t("storyline")}
           </Link>
           <div className="nav-note">
-            Characters, assets, storyline, version history, and warnings all live inside a project context. Open a project dashboard to access the workspace.
+            {t("workspaceDescription")}
           </div>
           <Link to="/projects/demo-project/settings" className="nav-link">
-            Project Settings
+            {t("settings")}
           </Link>
         </nav>
 
@@ -60,10 +62,10 @@ export function AppShell() {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Current workspace</p>
-            <h2>Project context pinned across routes</h2>
+            <p className="eyebrow">{t("currentWorkspace")}</p>
+            <h2>{t("workspaceTitle")}</h2>
           </div>
-          <div className="status-pill">Backend contract ready</div>
+          <div className="status-pill">{t("backendReady")}</div>
         </header>
 
         <section className="content-surface">

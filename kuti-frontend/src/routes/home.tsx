@@ -11,6 +11,7 @@ import {
   type ProjectRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { useT } from "@/lib/i18n";
 import { getConfig, getHealth } from "@/api/client";
 import { Link } from "react-router-dom";
 
@@ -62,6 +63,7 @@ function ProjectRow({ project }: { project: ProjectRead }) {
 
 export function HomeRoute() {
   const queryClient = useQueryClient();
+  const t = useT();
   const configQuery = useQuery({ queryKey: ["config"], queryFn: getConfig });
   const healthQuery = useQuery({ queryKey: ["health"], queryFn: getHealth });
   const projectsQuery = useQuery({ queryKey: ["projects"], queryFn: listProjects });
@@ -88,12 +90,10 @@ export function HomeRoute() {
     <div className="page-stack">
       <div className="hero">
         <div>
-          <p className="eyebrow">Project Hub</p>
-          <h3>Open, create, and manage local story projects.</h3>
+          <p className="eyebrow">{t("projectHub")}</p>
+          <h3>{t("homeHero")}</h3>
             <p className="muted max-width">
-            The first phase of Kuti Studio establishes the shell, the contract,
-            and the project entry point. Projects will appear here once the
-            local data model lands.
+            {t("homeIntro")}
             </p>
         </div>
         <div className="hero-card">
@@ -105,7 +105,7 @@ export function HomeRoute() {
 
       <div className="grid-2">
         <Card>
-          <p className="eyebrow">Backend status</p>
+          <p className="eyebrow">{t("backendStatus")}</p>
           <h4>{healthQuery.data?.status ?? "checking..."}</h4>
           <p className="muted">
             {healthQuery.isError
@@ -116,7 +116,7 @@ export function HomeRoute() {
           </p>
         </Card>
         <Card>
-          <p className="eyebrow">Runtime config</p>
+          <p className="eyebrow">{t("runtimeConfig")}</p>
           <h4>{configQuery.data?.environment ?? "loading..."}</h4>
           <p className="muted">
             {configQuery.data
@@ -129,13 +129,13 @@ export function HomeRoute() {
       <Card>
         <div className="section-head">
           <div>
-            <p className="eyebrow">Project Hub</p>
-            <h4>Available projects</h4>
+            <p className="eyebrow">{t("projectHub")}</p>
+            <h4>{t("availableProjects")}</h4>
           </div>
           <form className="inline-form" onSubmit={handleCreate}>
             <input name="name" placeholder="New project name" aria-label="Project name" />
             <button className="button button-primary" type="submit">
-              Create project
+              {t("createProject")}
             </button>
           </form>
         </div>
@@ -148,7 +148,7 @@ export function HomeRoute() {
           </div>
         ) : (
           <p className="muted">
-            No projects yet. Create the first project to initialize the local workspace.
+            {t("noProjects")}
           </p>
         )}
       </Card>

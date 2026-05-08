@@ -5,10 +5,12 @@ import { useParams } from "react-router-dom";
 
 import { getProject, updateProject } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { useT } from "@/lib/i18n";
 
 export function SettingsRoute() {
   const { projectId } = useParams();
   const queryClient = useQueryClient();
+  const t = useT();
   const projectQuery = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => getProject(projectId ?? ""),
@@ -42,11 +44,11 @@ export function SettingsRoute() {
   return (
     <div className="page-stack">
       <Card>
-        <p className="eyebrow">Project Settings</p>
-        <h3>{projectQuery.data?.name ?? "Project preferences"}</h3>
+        <p className="eyebrow">{t("settings")}</p>
+        <h3>{projectQuery.data?.name ?? t("projectSettingsIntro")}</h3>
         <form className="settings-form" onSubmit={handleSubmit}>
           <label>
-            Project name
+            {t("projectDashboard")}
             <input name="name" defaultValue={projectQuery.data?.name ?? ""} />
           </label>
           <label>
@@ -58,7 +60,7 @@ export function SettingsRoute() {
             />
           </label>
           <button className="button button-primary" type="submit">
-            Save settings
+            {t("saveSettings")}
           </button>
         </form>
       </Card>
