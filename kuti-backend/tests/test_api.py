@@ -576,6 +576,83 @@ def test_warning_generation_update_and_rebuild(tmp_path: Path, monkeypatch) -> N
     assert {item["kind"] for item in rescanned_items if item["status"] == "open"} == {"timeline_incoherence"}
 
 
+def test_export_workflow_generates_artifacts(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Export House", "settings_json": {"locations_json": ["Studio"]}},
+    ).json()
+    project_id = project["id"]
+
+    character = client.post(f"/api/projects/{project_id}/characters", json={"name": "Ari Vale", "narrative_role": "lead"}).json()
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Tome One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening"},
+    ).json()
+    client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={
+            "tome_id": tome["id"],
+            "chapter_id": chapter["id"],
+            "title": "Scene One",
+            "content": f"Introduce {character['slug']} and @character:{character['slug']}.",
+        },
+    )
+
+    json_export = client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"kind": "work", "format": "json", "label": "Working JSON", "summary": "Full snapshot"},
+    )
+    assert json_export.status_code == 201
+    json_payload = json_export.json()
+    assert json_payload["status"] == "ready"
+    assert json_payload["artifact_name"].endswith(".json")
+
+    json_download = client.get(f"/api/projects/{project_id}/exports/{json_payload['id']}/download")
+    assert json_download.status_code == 200
+    assert json_download.headers["content-type"].startswith("application/json")
+    assert json_download.json()["manifest"]["collections"]["characters"] == 1
+
+    tree_export = client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"kind": "publication", "format": "tree", "label": "Publication Tree", "summary": "Directory export"},
+    )
+    assert tree_export.status_code == 201
+    tree_payload = tree_export.json()
+    assert tree_payload["status"] == "ready"
+    assert tree_payload["artifact_path"].endswith("tree")
+
+    tree_download = client.get(f"/api/projects/{project_id}/exports/{tree_payload['id']}/download")
+    assert tree_download.status_code == 200
+    assert tree_download.headers["content-type"] == "application/zip"
+
+    zip_export = client.post(
+        f"/api/projects/{project_id}/exports",
+        json={"kind": "publication", "format": "zip", "label": "Publication Zip", "summary": "Portable package"},
+    )
+    assert zip_export.status_code == 201
+    zip_payload = zip_export.json()
+    assert zip_payload["status"] == "ready"
+    assert zip_payload["artifact_name"].endswith(".zip")
+
+    exports = client.get(f"/api/projects/{project_id}/exports")
+    assert exports.status_code == 200
+    assert len(exports.json()) == 3
+
+    publication_exports = client.get(f"/api/projects/{project_id}/exports", params={"kind": "publication"})
+    assert publication_exports.status_code == 200
+    assert len(publication_exports.json()) == 2
+
+    zip_download = client.get(f"/api/projects/{project_id}/exports/{zip_payload['id']}/download")
+    assert zip_download.status_code == 200
+    assert zip_download.headers["content-type"] == "application/zip"
+
+
 def test_character_routes_require_existing_project(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
     get_settings.cache_clear()

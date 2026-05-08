@@ -368,6 +368,38 @@ export type VersionRestoreInput = {
   summary?: string | null;
 };
 
+export type ExportKind = "work" | "publication";
+
+export type ExportFormat = "json" | "tree" | "zip";
+
+export type ExportStatus = "pending" | "ready" | "failed";
+
+export type ExportRead = {
+  id: string;
+  project_id: string;
+  kind: ExportKind;
+  format: ExportFormat;
+  status: ExportStatus;
+  label: string;
+  summary: string;
+  artifact_path: string | null;
+  artifact_name: string | null;
+  metadata_json: Record<string, unknown>;
+  size_bytes: number | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  failed_at: string | null;
+  error_message: string | null;
+};
+
+export type ExportCreateInput = {
+  kind?: ExportKind;
+  format?: ExportFormat;
+  label?: string | null;
+  summary?: string;
+};
+
 export type WarningSeverity = "info" | "warning" | "critical";
 
 export type WarningStatus = "open" | "ignored" | "resolved";
@@ -720,6 +752,30 @@ export function restoreVersion(projectId: string, versionId: string, payload?: V
     method: "POST",
     body: payload ? JSON.stringify(payload) : JSON.stringify({}),
   });
+}
+
+export function listExports(projectId: string, params?: { kind?: ExportKind; format?: ExportFormat; status?: ExportStatus }) {
+  const query = new URLSearchParams();
+  if (params?.kind) query.set("kind", params.kind);
+  if (params?.format) query.set("format", params.format);
+  if (params?.status) query.set("status", params.status);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request<ExportRead[]>(`/api/projects/${projectId}/exports${suffix}`);
+}
+
+export function createExport(projectId: string, payload: ExportCreateInput) {
+  return requestJson<ExportRead>(`/api/projects/${projectId}/exports`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getExport(projectId: string, exportId: string) {
+  return request<ExportRead>(`/api/projects/${projectId}/exports/${exportId}`);
+}
+
+export function exportDownloadUrl(projectId: string, exportId: string) {
+  return `${apiBaseUrl}/api/projects/${projectId}/exports/${exportId}/download`;
 }
 
 export function listWarnings(

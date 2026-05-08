@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router";
 import { AppShell } from "@/components/layout/app-shell";
 import { CharactersRoute } from "@/routes/characters";
 import { AssetsRoute } from "@/routes/assets";
+import { ExportsRoute } from "@/routes/exports";
 import { HomeRoute } from "@/routes/home";
 import { ProjectRoute } from "@/routes/project";
 import { VersionsRoute } from "@/routes/versions";
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
       { path: "projects/:projectId", Component: ProjectRoute },
       { path: "projects/:projectId/assets", Component: AssetsRoute },
       { path: "projects/:projectId/characters", Component: CharactersRoute },
+      { path: "projects/:projectId/exports", Component: ExportsRoute },
       { path: "projects/:projectId/versions", Component: VersionsRoute },
       { path: "projects/:projectId/warnings", Component: WarningsRoute },
       { path: "projects/:projectId/story", Component: StoryRoute },
