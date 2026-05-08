@@ -31,11 +31,14 @@ export function AppShell() {
           <Link to="/projects/demo-project/versions" className="nav-link">
             Versioning
           </Link>
+          <Link to="/projects/demo-project/warnings" className="nav-link">
+            Warnings
+          </Link>
           <Link to="/projects/demo-project/story" className="nav-link">
             Storyline
           </Link>
           <div className="nav-note">
-            Characters, assets, storyline, and version history all live inside a project context. Open a project dashboard to access the workspace.
+            Characters, assets, storyline, version history, and warnings all live inside a project context. Open a project dashboard to access the workspace.
           </div>
           <Link to="/projects/demo-project/settings" className="nav-link">
             Project Settings

@@ -368,6 +368,38 @@ export type VersionRestoreInput = {
   summary?: string | null;
 };
 
+export type WarningSeverity = "info" | "warning" | "critical";
+
+export type WarningStatus = "open" | "ignored" | "resolved";
+
+export type WarningKind = "missing_character_reference" | "invalid_location" | "timeline_incoherence" | "orphan_reference";
+
+export type WarningRead = {
+  id: string;
+  project_id: string;
+  fingerprint: string;
+  kind: WarningKind;
+  severity: WarningSeverity;
+  status: WarningStatus;
+  title: string;
+  message: string;
+  entity_kind: string;
+  entity_id: string;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+};
+
+export type WarningUpdateInput = {
+  status: WarningStatus;
+  note?: string | null;
+};
+
+export type WarningScanResponse = {
+  items: WarningRead[];
+};
+
 const apiBaseUrl = import.meta.env.VITE_KUTI_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string): Promise<T> {
@@ -687,5 +719,30 @@ export function restoreVersion(projectId: string, versionId: string, payload?: V
   return requestJson<VersionRead>(`/api/projects/${projectId}/versions/${versionId}/restore`, {
     method: "POST",
     body: payload ? JSON.stringify(payload) : JSON.stringify({}),
+  });
+}
+
+export function listWarnings(
+  projectId: string,
+  params?: { status?: WarningStatus; kind?: WarningKind; severity?: WarningSeverity },
+) {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.kind) query.set("kind", params.kind);
+  if (params?.severity) query.set("severity", params.severity);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request<WarningRead[]>(`/api/projects/${projectId}/warnings${suffix}`);
+}
+
+export function scanWarnings(projectId: string) {
+  return requestJson<WarningScanResponse>(`/api/projects/${projectId}/warnings/scan`, {
+    method: "POST",
+  });
+}
+
+export function updateWarning(projectId: string, warningId: string, payload: WarningUpdateInput) {
+  return requestJson<WarningRead>(`/api/projects/${projectId}/warnings/${warningId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }

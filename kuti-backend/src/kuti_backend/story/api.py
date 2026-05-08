@@ -27,6 +27,7 @@ from kuti_backend.story.repository import (
     update_scene,
     update_tome,
 )
+from kuti_backend.warnings.repository import rebuild_warnings
 from kuti_backend.story.schemas import (
     ChapterCreate,
     ChapterRead,
@@ -102,7 +103,9 @@ def read_tomes(session: SessionDep, project_id: str) -> list[TomeRead]:
 @router.post("/projects/{project_id}/story/tomes", response_model=TomeRead, status_code=status.HTTP_201_CREATED)
 def create_tome_route(session: SessionDep, project_id: str, payload: TomeCreate) -> TomeRead:
     try:
-        return create_tome(session, project_id, payload)
+        tome = create_tome(session, project_id, payload)
+        rebuild_warnings(session, project_id)
+        return tome
     except ValueError as exc:
         raise HTTPException(status_code=404 if str(exc) == "project_not_found" else 409, detail=str(exc)) from exc
 
@@ -111,7 +114,9 @@ def create_tome_route(session: SessionDep, project_id: str, payload: TomeCreate)
 def update_tome_route(session: SessionDep, project_id: str, tome_id: str, payload: TomeUpdate) -> TomeRead:
     _project_or_404(session, project_id)
     tome = _tome_or_404(session, project_id, tome_id)
-    return update_tome(session, project_id, tome, payload)
+    updated = update_tome(session, project_id, tome, payload)
+    rebuild_warnings(session, project_id)
+    return updated
 
 
 @router.delete("/projects/{project_id}/story/tomes/{tome_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -119,6 +124,7 @@ def delete_tome_route(session: SessionDep, project_id: str, tome_id: str) -> Non
     _project_or_404(session, project_id)
     tome = _tome_or_404(session, project_id, tome_id)
     delete_tome(session, tome)
+    rebuild_warnings(session, project_id)
 
 
 @router.get("/projects/{project_id}/story/chapters", response_model=list[ChapterRead])
@@ -132,7 +138,9 @@ def read_chapters(session: SessionDep, project_id: str, tome_id: str | None = Qu
 @router.post("/projects/{project_id}/story/chapters", response_model=ChapterRead, status_code=status.HTTP_201_CREATED)
 def create_chapter_route(session: SessionDep, project_id: str, payload: ChapterCreate) -> ChapterRead:
     try:
-        return create_chapter(session, project_id, payload)
+        chapter = create_chapter(session, project_id, payload)
+        rebuild_warnings(session, project_id)
+        return chapter
     except ValueError as exc:
         message = str(exc)
         raise HTTPException(status_code=404 if message in {"project_not_found", "chapter_missing_tome"} else 409, detail=message) from exc
@@ -143,7 +151,9 @@ def update_chapter_route(session: SessionDep, project_id: str, chapter_id: str, 
     _project_or_404(session, project_id)
     chapter = _chapter_or_404(session, project_id, chapter_id)
     try:
-        return update_chapter(session, project_id, chapter, payload)
+        updated = update_chapter(session, project_id, chapter, payload)
+        rebuild_warnings(session, project_id)
+        return updated
     except ValueError as exc:
         message = str(exc)
         raise HTTPException(status_code=404 if message == "chapter_missing_tome" else 409, detail=message) from exc
@@ -154,6 +164,7 @@ def delete_chapter_route(session: SessionDep, project_id: str, chapter_id: str) 
     _project_or_404(session, project_id)
     chapter = _chapter_or_404(session, project_id, chapter_id)
     delete_chapter(session, chapter)
+    rebuild_warnings(session, project_id)
 
 
 @router.get("/projects/{project_id}/story/scenes", response_model=list[SceneRead])
@@ -167,7 +178,9 @@ def read_scenes(session: SessionDep, project_id: str, chapter_id: str | None = Q
 @router.post("/projects/{project_id}/story/scenes", response_model=SceneRead, status_code=status.HTTP_201_CREATED)
 def create_scene_route(session: SessionDep, project_id: str, payload: SceneCreate) -> SceneRead:
     try:
-        return create_scene(session, project_id, payload)
+        scene = create_scene(session, project_id, payload)
+        rebuild_warnings(session, project_id)
+        return scene
     except ValueError as exc:
         message = str(exc)
         raise HTTPException(status_code=404 if message in {"project_not_found", "scene_hierarchy_mismatch"} else 409, detail=message) from exc
@@ -178,7 +191,9 @@ def update_scene_route(session: SessionDep, project_id: str, scene_id: str, payl
     _project_or_404(session, project_id)
     scene = _scene_or_404(session, project_id, scene_id)
     try:
-        return update_scene(session, project_id, scene, payload)
+        updated = update_scene(session, project_id, scene, payload)
+        rebuild_warnings(session, project_id)
+        return updated
     except ValueError as exc:
         message = str(exc)
         raise HTTPException(status_code=404 if message == "scene_hierarchy_mismatch" else 409, detail=message) from exc
@@ -189,3 +204,4 @@ def delete_scene_route(session: SessionDep, project_id: str, scene_id: str) -> N
     _project_or_404(session, project_id)
     scene = _scene_or_404(session, project_id, scene_id)
     delete_scene(session, scene)
+    rebuild_warnings(session, project_id)

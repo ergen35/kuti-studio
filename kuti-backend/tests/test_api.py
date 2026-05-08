@@ -491,6 +491,91 @@ def test_versioning_checkpoints_compare_and_restore(tmp_path: Path, monkeypatch)
     ]
 
 
+def test_warning_generation_update_and_rebuild(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post(
+        "/api/projects",
+        json={"name": "Continuity Desk", "settings_json": {"locations_json": ["Dockside"]}},
+    ).json()
+    project_id = project["id"]
+
+    tome = client.post(f"/api/projects/{project_id}/story/tomes", json={"title": "Book One"}).json()
+    chapter = client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Opening", "order_index": 1},
+    ).json()
+
+    client.post(
+        f"/api/projects/{project_id}/story/scenes",
+        json={
+            "tome_id": tome["id"],
+            "chapter_id": chapter["id"],
+            "title": "Fault Line",
+            "location": "Unknown Quarter",
+            "characters_json": ["Ghost"],
+            "content": "An echo of @character:ghost crosses the stage.",
+            "order_index": 1,
+        },
+    )
+
+    client.post(
+        f"/api/projects/{project_id}/story/chapters",
+        json={"tome_id": tome["id"], "title": "Second Opening", "order_index": 1},
+    )
+
+    warnings = client.get(f"/api/projects/{project_id}/warnings")
+    assert warnings.status_code == 200
+    warning_items = warnings.json()
+    kinds = {item["kind"] for item in warning_items}
+    assert kinds == {
+        "missing_character_reference",
+        "invalid_location",
+        "timeline_incoherence",
+        "orphan_reference",
+    }
+
+    missing_warning = next(item for item in warning_items if item["kind"] == "missing_character_reference")
+    updated = client.patch(
+        f"/api/projects/{project_id}/warnings/{missing_warning['id']}",
+        json={"status": "resolved", "note": "Added the character after drafting the scene."},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "resolved"
+    assert updated.json()["metadata_json"]["note"] == "Added the character after drafting the scene."
+
+    created_character = client.post(
+        f"/api/projects/{project_id}/characters",
+        json={"name": "Ghost", "narrative_role": "cameo"},
+    )
+    assert created_character.status_code == 201
+    assert created_character.json()["slug"] == "ghost"
+
+    open_warnings = client.get(f"/api/projects/{project_id}/warnings", params={"status": "open"})
+    assert open_warnings.status_code == 200
+    assert {item["kind"] for item in open_warnings.json()} == {"invalid_location", "timeline_incoherence"}
+
+    all_warnings = client.get(f"/api/projects/{project_id}/warnings")
+    assert all_warnings.status_code == 200
+    statuses = {item["kind"]: item["status"] for item in all_warnings.json()}
+    assert statuses["missing_character_reference"] == "resolved"
+    assert statuses["orphan_reference"] == "resolved"
+
+    patched_project = client.patch(
+        f"/api/projects/{project_id}",
+        json={"settings_json": {"locations_json": ["Dockside", "Unknown Quarter"]}},
+    )
+    assert patched_project.status_code == 200
+
+    rescanned = client.post(f"/api/projects/{project_id}/warnings/scan")
+    assert rescanned.status_code == 200
+    rescanned_items = rescanned.json()["items"]
+    assert {item["kind"] for item in rescanned_items if item["status"] == "open"} == {"timeline_incoherence"}
+
+
 def test_character_routes_require_existing_project(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
     get_settings.cache_clear()

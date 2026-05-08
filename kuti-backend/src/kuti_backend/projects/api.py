@@ -17,6 +17,7 @@ from kuti_backend.projects.repository import (
     open_project,
     update_project,
 )
+from kuti_backend.warnings.repository import rebuild_warnings
 from kuti_backend.projects.schemas import (
     ProjectClone,
     ProjectCreate,
@@ -59,7 +60,9 @@ def patch_project(request: Request, session: SessionDep, project_id: str, payloa
     project = get_project(session, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    return update_project(session, current_settings(request), project, payload)
+    updated = update_project(session, current_settings(request), project, payload)
+    rebuild_warnings(session, project_id)
+    return updated
 
 
 @router.post("/projects/{project_id}/archive", response_model=ProjectRead)

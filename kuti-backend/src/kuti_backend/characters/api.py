@@ -22,6 +22,7 @@ from kuti_backend.characters.repository import (
     update_character,
     update_relation,
 )
+from kuti_backend.warnings.repository import rebuild_warnings
 from kuti_backend.characters.schemas import (
     CharacterCreate,
     CharacterDetail,
@@ -64,7 +65,9 @@ def read_characters(session: SessionDep, project_id: str) -> CharacterListRespon
 def create_character_route(session: SessionDep, project_id: str, payload: CharacterCreate) -> CharacterRead:
     _project_or_404(session, project_id)
     try:
-        return create_character(session, project_id, payload)
+        character = create_character(session, project_id, payload)
+        rebuild_warnings(session, project_id)
+        return character
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -87,7 +90,9 @@ def update_character_route(session: SessionDep, project_id: str, character_id: s
     _project_or_404(session, project_id)
     character = _character_or_404(session, project_id, character_id)
     try:
-        return update_character(session, project_id, character, payload)
+        updated = update_character(session, project_id, character, payload)
+        rebuild_warnings(session, project_id)
+        return updated
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -97,7 +102,9 @@ def duplicate_character_route(session: SessionDep, project_id: str, character_id
     _project_or_404(session, project_id)
     character = _character_or_404(session, project_id, character_id)
     try:
-        return duplicate_character(session, project_id, character, payload)
+        duplicate = duplicate_character(session, project_id, character, payload)
+        rebuild_warnings(session, project_id)
+        return duplicate
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -106,7 +113,9 @@ def duplicate_character_route(session: SessionDep, project_id: str, character_id
 def archive_character_route(session: SessionDep, project_id: str, character_id: str) -> CharacterRead:
     _project_or_404(session, project_id)
     character = _character_or_404(session, project_id, character_id)
-    return archive_character(session, character)
+    archived = archive_character(session, character)
+    rebuild_warnings(session, project_id)
+    return archived
 
 
 @router.delete("/projects/{project_id}/characters/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -114,6 +123,7 @@ def delete_character_route(session: SessionDep, project_id: str, character_id: s
     _project_or_404(session, project_id)
     character = _character_or_404(session, project_id, character_id)
     delete_character(session, character)
+    rebuild_warnings(session, project_id)
 
 
 @router.post("/projects/{project_id}/characters/{character_id}/relations", response_model=CharacterRelationRead, status_code=status.HTTP_201_CREATED)
@@ -122,7 +132,9 @@ def create_relation_route(session: SessionDep, project_id: str, character_id: st
     if payload.source_character_id != character_id:
         raise HTTPException(status_code=400, detail="source_character_id must match route character")
     try:
-        return create_relation(session, project_id, payload)
+        relation = create_relation(session, project_id, payload)
+        rebuild_warnings(session, project_id)
+        return relation
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -139,7 +151,9 @@ def update_relation_route(session: SessionDep, project_id: str, character_id: st
         or character_id not in {relation.source_character_id, relation.target_character_id}
     ):
         raise HTTPException(status_code=404, detail="Relation not found")
-    return update_relation(session, relation, payload)
+    updated = update_relation(session, relation, payload)
+    rebuild_warnings(session, project_id)
+    return updated
 
 
 @router.delete("/projects/{project_id}/characters/{character_id}/relations/{relation_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -155,10 +169,13 @@ def delete_relation_route(session: SessionDep, project_id: str, character_id: st
     ):
         raise HTTPException(status_code=404, detail="Relation not found")
     delete_relation(session, relation)
+    rebuild_warnings(session, project_id)
 
 
 @router.post("/projects/{project_id}/characters/{character_id}/voice-samples", response_model=VoiceSampleRead, status_code=status.HTTP_201_CREATED)
 def create_voice_sample_route(session: SessionDep, project_id: str, character_id: str, payload: VoiceSampleCreate) -> VoiceSampleRead:
     _project_or_404(session, project_id)
     _character_or_404(session, project_id, character_id)
-    return create_voice_sample(session, project_id, character_id, payload)
+    voice_sample = create_voice_sample(session, project_id, character_id, payload)
+    rebuild_warnings(session, project_id)
+    return voice_sample
