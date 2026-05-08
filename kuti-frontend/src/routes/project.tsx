@@ -46,6 +46,9 @@ export function ProjectRoute() {
           <button className="button button-ghost" type="button" onClick={() => archiveMutation.mutate()}>
             Archive
           </button>
+          <Link to={`/projects/${projectId}/characters`} className="button button-secondary">
+            Characters
+          </Link>
           <Link to={`/projects/${projectId}/settings`} className="button button-secondary">
             Settings
           </Link>

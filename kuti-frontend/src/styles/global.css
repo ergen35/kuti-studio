@@ -86,6 +86,15 @@ a {
   margin-top: 2rem;
 }
 
+.nav-note {
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px dashed rgba(61, 40, 22, 0.18);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.36);
+  line-height: 1.45;
+}
+
 .nav-link,
 .button {
   border-radius: 999px;
@@ -189,6 +198,123 @@ a {
   gap: 1rem;
 }
 
+.section-head,
+.form-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.form-head {
+  margin-bottom: 0.25rem;
+}
+
+.character-page {
+  gap: 1.25rem;
+}
+
+.character-layout {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1.4fr);
+  gap: 1rem;
+}
+
+.character-hero {
+  margin-bottom: 0;
+}
+
+.character-list,
+.mini-list,
+.editor-stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.character-item,
+.mini-card,
+.stacked-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.58);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.character-item {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.character-item.is-selected {
+  border-color: rgba(140, 90, 43, 0.5);
+  background: rgba(255, 250, 242, 0.9);
+}
+
+.character-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 1rem 0;
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.form-grid-two,
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.align-start {
+  align-self: flex-start;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--accent-strong);
+  font-size: 0.92rem;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 0.85rem 0.95rem;
+  font: inherit;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid rgba(140, 90, 43, 0.22);
+  outline-offset: 2px;
+}
+
+.relation-form,
+.voice-form {
+  margin-top: 0.75rem;
+}
+
 .button {
   font: inherit;
   cursor: pointer;
@@ -234,6 +360,12 @@ a {
 
   .hero,
   .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .character-layout,
+  .form-grid-two,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 }
