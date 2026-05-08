@@ -149,6 +149,26 @@ def test_character_profiles_and_relations(tmp_path: Path, monkeypatch) -> None:
     )
     assert relation.status_code == 201
 
+    relation_id = relation.json()["id"]
+
+    inbound_update = client.patch(
+        f"/api/projects/{project['id']}/characters/{duplicate.json()['id']}/relations/{relation_id}",
+        json={"notes": "Update from the target side."},
+    )
+    assert inbound_update.status_code == 200
+    assert inbound_update.json()["notes"] == "Update from the target side."
+
+    duplicate_relation = client.post(
+        f"/api/projects/{project['id']}/characters/{character['id']}/relations",
+        json={
+            "source_character_id": character["id"],
+            "target_character_id": duplicate.json()["id"],
+            "relation_type": "rival",
+            "strength": 72,
+        },
+    )
+    assert duplicate_relation.status_code == 409
+
     voice = client.post(
         f"/api/projects/{project['id']}/characters/{character['id']}/voice-samples",
         json={"label": "calm low register", "voice_notes": "Slow, intimate phrasing."},
@@ -160,3 +180,23 @@ def test_character_profiles_and_relations(tmp_path: Path, monkeypatch) -> None:
     assert refreshed.json()["relationships_summary"] is not None
     assert len(refreshed.json()["relations"]) == 1
     assert len(refreshed.json()["voice_samples"]) == 1
+
+    deleted = client.delete(f"/api/projects/{project['id']}/characters/{duplicate.json()['id']}/relations/{relation_id}")
+    assert deleted.status_code == 204
+
+    deleted_character = client.delete(f"/api/projects/{project['id']}/characters/{character['id']}")
+    assert deleted_character.status_code == 204
+
+    remaining = client.get(f"/api/projects/{project['id']}/characters")
+    assert remaining.status_code == 200
+    assert len(remaining.json()["items"]) == 1
+
+
+def test_character_routes_require_existing_project(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    response = client.get("/api/projects/missing/characters")
+    assert response.status_code == 404

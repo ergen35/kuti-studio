@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from kuti_backend.characters.models import Character, CharacterRelation, VoiceSample
@@ -29,7 +29,7 @@ def _normalize_tags(tags: list[str]) -> list[str]:
 
 
 def list_characters(session: Session, project_id: str) -> list[Character]:
-    stmt = select(Character).where(Character.project_id == project_id).order_by(Character.updated_at.desc())
+    stmt = select(Character).where(Character.project_id == project_id).order_by(Character.updated_at.desc(), Character.name.asc())
     return list(session.scalars(stmt))
 
 
@@ -142,6 +142,21 @@ def duplicate_character(session: Session, project_id: str, character: Character,
 
 
 def delete_character(session: Session, character: Character) -> None:
+    session.execute(
+        delete(CharacterRelation).where(
+            CharacterRelation.project_id == character.project_id,
+            or_(
+                CharacterRelation.source_character_id == character.id,
+                CharacterRelation.target_character_id == character.id,
+            ),
+        )
+    )
+    session.execute(
+        delete(VoiceSample).where(
+            VoiceSample.project_id == character.project_id,
+            VoiceSample.character_id == character.id,
+        )
+    )
     session.delete(character)
     session.commit()
 
@@ -153,8 +168,18 @@ def list_relations(session: Session, project_id: str, character_id: str) -> list
             CharacterRelation.source_character_id == character_id,
             CharacterRelation.target_character_id == character_id,
         ),
-    )
+    ).order_by(CharacterRelation.updated_at.desc())
     return list(session.scalars(stmt))
+
+
+def _relation_exists(session: Session, project_id: str, payload: CharacterRelationCreate) -> bool:
+    stmt = select(CharacterRelation.id).where(
+        CharacterRelation.project_id == project_id,
+        CharacterRelation.source_character_id == payload.source_character_id,
+        CharacterRelation.target_character_id == payload.target_character_id,
+        CharacterRelation.relation_type == payload.relation_type,
+    )
+    return session.scalar(stmt) is not None
 
 
 def create_relation(session: Session, project_id: str, payload: CharacterRelationCreate) -> CharacterRelation:
@@ -162,6 +187,8 @@ def create_relation(session: Session, project_id: str, payload: CharacterRelatio
         raise ValueError("relation_self_reference")
     if not _character_exists(session, project_id, payload.source_character_id) or not _character_exists(session, project_id, payload.target_character_id):
         raise ValueError("relation_missing_character")
+    if _relation_exists(session, project_id, payload):
+        raise ValueError("relation_conflict")
     relation = CharacterRelation(
         id=str(uuid4()),
         project_id=project_id,
@@ -199,7 +226,7 @@ def delete_relation(session: Session, relation: CharacterRelation) -> None:
 
 
 def list_voice_samples(session: Session, project_id: str, character_id: str) -> list[VoiceSample]:
-    stmt = select(VoiceSample).where(VoiceSample.project_id == project_id, VoiceSample.character_id == character_id)
+    stmt = select(VoiceSample).where(VoiceSample.project_id == project_id, VoiceSample.character_id == character_id).order_by(VoiceSample.created_at.desc())
     return list(session.scalars(stmt))
 
 

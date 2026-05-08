@@ -52,6 +52,8 @@ export type ProjectCloneInput = {
   name?: string;
 };
 
+export type CharacterStatus = "active" | "draft" | "archived";
+
 export type CharacterRead = {
   id: string;
   project_id: string;
@@ -66,7 +68,7 @@ export type CharacterRead = {
   personality: string;
   narrative_arc: string;
   tags_json: string[];
-  status: string;
+  status: CharacterStatus;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
@@ -94,7 +96,7 @@ export type CharacterCreateInput = {
   personality?: string;
   narrative_arc?: string;
   tags_json?: string[];
-  status?: string;
+  status?: CharacterStatus;
 };
 
 export type CharacterUpdateInput = Partial<CharacterCreateInput>;

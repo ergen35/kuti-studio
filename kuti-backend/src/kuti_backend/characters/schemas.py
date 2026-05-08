@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class CharacterStatus(StrEnum):
+    active = "active"
+    draft = "draft"
+    archived = "archived"
 
 
 class CharacterBase(BaseModel):
@@ -17,7 +24,7 @@ class CharacterBase(BaseModel):
     personality: str = ""
     narrative_arc: str = ""
     tags_json: list[str] = Field(default_factory=list)
-    status: str = Field(default="active", max_length=32)
+    status: CharacterStatus = CharacterStatus.active
 
 
 class CharacterCreate(CharacterBase):
@@ -36,7 +43,7 @@ class CharacterUpdate(BaseModel):
     personality: str | None = None
     narrative_arc: str | None = None
     tags_json: list[str] | None = None
-    status: str | None = Field(default=None, max_length=32)
+    status: CharacterStatus | None = None
 
 
 class CharacterDuplicate(BaseModel):
@@ -59,7 +66,7 @@ class CharacterRead(BaseModel):
     personality: str
     narrative_arc: str
     tags_json: list[str]
-    status: str
+    status: CharacterStatus
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None = None

@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -18,6 +18,7 @@ import {
   updateCharacter,
   type CharacterRead,
   type CharacterRelationRead,
+  type CharacterStatus,
   type VoiceSampleRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
@@ -31,6 +32,39 @@ function splitLines(value: string) {
 
 function joinLines(values: string[]) {
   return values.join("\n");
+}
+
+type CharacterSort = "updated-desc" | "name-asc" | "status-asc";
+
+function normalizeText(value: FormDataEntryValue | null) {
+  return String(value ?? "").trim();
+}
+
+function parseCharacterStatus(value: string, fallback: CharacterStatus | null = null): CharacterStatus | undefined {
+  if (value === "active" || value === "draft" || value === "archived") {
+    return value;
+  }
+  return fallback ?? undefined;
+}
+
+function buildCharacterPayload(formData: FormData, includeStatus: boolean) {
+  const name = normalizeText(formData.get("name"));
+  const payload = {
+    name: name || undefined,
+    alias: normalizeText(formData.get("alias")) || null,
+    narrative_role: normalizeText(formData.get("narrative_role")) || null,
+    description: normalizeText(formData.get("description")),
+    physical_description: normalizeText(formData.get("physical_description")),
+    color_palette_json: splitLines(normalizeText(formData.get("color_palette_json"))),
+    costume_elements_json: splitLines(normalizeText(formData.get("costume_elements_json"))),
+    key_traits_json: splitLines(normalizeText(formData.get("key_traits_json"))),
+    personality: normalizeText(formData.get("personality")),
+    narrative_arc: normalizeText(formData.get("narrative_arc")),
+    tags_json: splitLines(normalizeText(formData.get("tags_json"))),
+    status: includeStatus ? parseCharacterStatus(normalizeText(formData.get("status"))) : undefined,
+  };
+
+  return payload;
 }
 
 function CharacterListItem({
@@ -89,6 +123,18 @@ export function CharactersRoute() {
   const { projectId } = useParams();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const searchTerm = searchParams.get("search") ?? "";
+  const statusFilter = searchParams.get("status") ?? "all";
+  const sortOrder = (searchParams.get("sort") as CharacterSort | null) ?? "updated-desc";
+
+  const replaceSearchParams = useCallback(
+    (mutator: (params: URLSearchParams) => void) => {
+      const next = new URLSearchParams(searchParams);
+      mutator(next);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
   const charactersQuery = useQuery({
     queryKey: ["characters", projectId],
@@ -105,11 +151,40 @@ export function CharactersRoute() {
     return items.find((character) => character.id === selectedCharacterId) ?? items[0];
   }, [charactersQuery.data?.items, selectedCharacterId]);
 
+  const filteredCharacters = useMemo(() => {
+    const items = charactersQuery.data?.items ?? [];
+    const query = searchTerm.trim().toLowerCase();
+    const filtered = items.filter((character) => {
+      const matchesSearch =
+        !query ||
+        [character.name, character.alias ?? "", character.narrative_role ?? "", character.tags_json.join(" ")]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      const matchesStatus = statusFilter === "all" || character.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortOrder === "name-asc") {
+        return a.name.localeCompare(b.name);
+      }
+      if (sortOrder === "status-asc") {
+        return a.status.localeCompare(b.status) || b.updated_at.localeCompare(a.updated_at);
+      }
+      return b.updated_at.localeCompare(a.updated_at) || a.name.localeCompare(b.name);
+    });
+
+    return sorted;
+  }, [charactersQuery.data?.items, searchTerm, sortOrder, statusFilter]);
+
   useEffect(() => {
     if (!selectedCharacterId && selectedCharacter?.id) {
-      setSearchParams({ characterId: selectedCharacter.id }, { replace: true });
+      replaceSearchParams((params) => {
+        params.set("characterId", selectedCharacter.id);
+      });
     }
-  }, [selectedCharacter?.id, selectedCharacterId, setSearchParams]);
+  }, [replaceSearchParams, selectedCharacter?.id, selectedCharacterId]);
 
   const detailQuery = useQuery({
     queryKey: ["character", projectId, selectedCharacter?.id],
@@ -126,7 +201,9 @@ export function CharactersRoute() {
     mutationFn: (payload: Parameters<typeof createCharacter>[1]) => createCharacter(projectId ?? "", payload),
     onSuccess: async (created) => {
       await refreshCharacters();
-      setSearchParams({ characterId: created.id });
+      replaceSearchParams((params) => {
+        params.set("characterId", created.id);
+      });
     },
   });
 
@@ -141,7 +218,9 @@ export function CharactersRoute() {
       duplicateCharacter(projectId ?? "", selectedCharacter?.id ?? "", payload),
     onSuccess: async (created) => {
       await refreshCharacters();
-      setSearchParams({ characterId: created.id });
+      replaceSearchParams((params) => {
+        params.set("characterId", created.id);
+      });
     },
   });
 
@@ -154,7 +233,9 @@ export function CharactersRoute() {
     mutationFn: () => deleteCharacter(projectId ?? "", selectedCharacter?.id ?? ""),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["characters", projectId] });
-      setSearchParams({});
+      replaceSearchParams((params) => {
+        params.delete("characterId");
+      });
     },
   });
 
@@ -182,24 +263,12 @@ export function CharactersRoute() {
   const handleCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const name = String(formData.get("name") ?? "").trim();
-    if (!name) {
+    const payload = buildCharacterPayload(formData, false);
+    if (!payload.name) {
       return;
     }
 
-    createMutation.mutate({
-      name,
-      alias: String(formData.get("alias") ?? "").trim() || null,
-      narrative_role: String(formData.get("narrative_role") ?? "").trim() || null,
-      description: String(formData.get("description") ?? "").trim(),
-      physical_description: String(formData.get("physical_description") ?? "").trim(),
-      color_palette_json: splitLines(String(formData.get("color_palette_json") ?? "")),
-      costume_elements_json: splitLines(String(formData.get("costume_elements_json") ?? "")),
-      key_traits_json: splitLines(String(formData.get("key_traits_json") ?? "")),
-      personality: String(formData.get("personality") ?? "").trim(),
-      narrative_arc: String(formData.get("narrative_arc") ?? "").trim(),
-      tags_json: splitLines(String(formData.get("tags_json") ?? "")),
-    });
+    createMutation.mutate(payload as Parameters<typeof createCharacter>[1]);
 
     event.currentTarget.reset();
   };
@@ -211,19 +280,11 @@ export function CharactersRoute() {
     }
 
     const formData = new FormData(event.currentTarget);
+    const payload = buildCharacterPayload(formData, true);
     updateMutation.mutate({
-      name: String(formData.get("name") ?? "").trim(),
-      alias: String(formData.get("alias") ?? "").trim() || null,
-      narrative_role: String(formData.get("narrative_role") ?? "").trim() || null,
-      description: String(formData.get("description") ?? "").trim(),
-      physical_description: String(formData.get("physical_description") ?? "").trim(),
-      color_palette_json: splitLines(String(formData.get("color_palette_json") ?? "")),
-      costume_elements_json: splitLines(String(formData.get("costume_elements_json") ?? "")),
-      key_traits_json: splitLines(String(formData.get("key_traits_json") ?? "")),
-      personality: String(formData.get("personality") ?? "").trim(),
-      narrative_arc: String(formData.get("narrative_arc") ?? "").trim(),
-      tags_json: splitLines(String(formData.get("tags_json") ?? "")),
-      status: String(formData.get("status") ?? selectedCharacter.status).trim(),
+      ...payload,
+      name: payload.name ?? undefined,
+      status: payload.status ?? selectedCharacter.status,
     });
   };
 
@@ -240,11 +301,13 @@ export function CharactersRoute() {
       return;
     }
 
+    const parsedStrength = Number(formData.get("strength") ?? 50);
+
     relationMutation.mutate({
       source_character_id: selectedCharacter.id,
       target_character_id: targetCharacterId,
       relation_type: relationType,
-      strength: Number(formData.get("strength") ?? 50),
+      strength: Number.isFinite(parsedStrength) ? Math.min(100, Math.max(0, parsedStrength)) : 50,
       narrative_dependency: String(formData.get("narrative_dependency") ?? "").trim(),
       notes: String(formData.get("notes") ?? "").trim(),
     });
@@ -307,18 +370,90 @@ export function CharactersRoute() {
             </Link>
           </div>
 
+          <form
+            className="filters-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+            }}
+          >
+            <input
+              name="search"
+              placeholder="Search characters"
+              value={searchTerm}
+              onChange={(event) => {
+                replaceSearchParams((params) => {
+                  const value = event.currentTarget.value.trim();
+                  if (value) params.set("search", value);
+                  else params.delete("search");
+                });
+              }}
+            />
+            <select
+              name="status"
+              value={statusFilter}
+              onChange={(event) => {
+                replaceSearchParams((params) => {
+                  const value = event.currentTarget.value;
+                  if (value === "all") params.delete("status");
+                  else params.set("status", value);
+                });
+              }}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+            <select
+              name="sort"
+              value={sortOrder}
+              onChange={(event) => {
+                replaceSearchParams((params) => {
+                  const value = event.currentTarget.value as CharacterSort;
+                  if (value === "updated-desc") params.delete("sort");
+                  else params.set("sort", value);
+                });
+              }}
+            >
+              <option value="updated-desc">Recently updated</option>
+              <option value="name-asc">Name A-Z</option>
+              <option value="status-asc">Status</option>
+            </select>
+            <button
+              className="button button-ghost"
+              type="button"
+              onClick={() =>
+                replaceSearchParams((params) => {
+                  params.delete("search");
+                  params.delete("status");
+                  params.delete("sort");
+                })
+              }
+            >
+              Clear filters
+            </button>
+          </form>
+
           <div className="character-list">
-            {charactersQuery.data?.items.length ? (
-              charactersQuery.data.items.map((character) => (
+            {filteredCharacters.length ? (
+              filteredCharacters.map((character) => (
                 <CharacterListItem
                   key={character.id}
                   character={character}
                   selected={character.id === selectedCharacter?.id}
-                  onSelect={(id) => setSearchParams({ characterId: id })}
+                  onSelect={(id) =>
+                    replaceSearchParams((params) => {
+                      params.set("characterId", id);
+                    })
+                  }
                 />
               ))
             ) : (
-              <p className="muted">No characters yet. Create the first cast member below.</p>
+              <p className="muted">
+                {charactersQuery.data?.items.length
+                  ? "No characters match the current filters."
+                  : "No characters yet. Create the first cast member below."}
+              </p>
             )}
           </div>
 
@@ -331,7 +466,7 @@ export function CharactersRoute() {
             </div>
             <label>
               Name
-              <input name="name" placeholder="Mara Vale" />
+              <input name="name" placeholder="Mara Vale" required />
             </label>
             <label>
               Alias
@@ -517,7 +652,7 @@ export function CharactersRoute() {
                   <form className="form-grid relation-form" onSubmit={handleRelationCreate}>
                     <label>
                       Target character
-                      <select name="target_character_id" defaultValue="">
+                      <select name="target_character_id" defaultValue="" required>
                         <option value="" disabled>
                           Choose a character
                         </option>
@@ -530,7 +665,7 @@ export function CharactersRoute() {
                     </label>
                     <label>
                       Relation type
-                      <input name="relation_type" placeholder="rival" />
+                      <input name="relation_type" placeholder="rival" required />
                     </label>
                     <label>
                       Strength
@@ -571,7 +706,7 @@ export function CharactersRoute() {
                   <form className="form-grid voice-form" onSubmit={handleVoiceCreate}>
                     <label>
                       Label
-                      <input name="label" placeholder="calm low register" />
+                      <input name="label" placeholder="calm low register" required />
                     </label>
                     <label>
                       Asset path

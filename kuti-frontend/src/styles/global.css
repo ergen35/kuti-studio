@@ -231,6 +231,13 @@ a {
   gap: 0.85rem;
 }
 
+.filters-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 0.8fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
 .character-item,
 .mini-card,
 .stacked-card {
@@ -315,6 +322,11 @@ select:focus {
   margin-top: 0.75rem;
 }
 
+.filters-row input,
+.filters-row select {
+  min-height: 48px;
+}
+
 .button {
   font: inherit;
   cursor: pointer;
@@ -365,7 +377,8 @@ select:focus {
 
   .character-layout,
   .form-grid-two,
-  .detail-grid {
+  .detail-grid,
+  .filters-row {
     grid-template-columns: 1fr;
   }
 }
