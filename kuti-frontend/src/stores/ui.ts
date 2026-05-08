@@ -15,7 +15,7 @@ type UIState = {
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
-      theme: "light",
+      theme: "dark",
       locale: "en",
       setTheme: (theme) => set({ theme }),
       toggleTheme: () =>

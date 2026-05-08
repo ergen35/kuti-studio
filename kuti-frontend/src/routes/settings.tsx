@@ -5,7 +5,10 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { getProject, updateProject } from "@/api/client";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/lib/i18n";
 
 export function SettingsRoute() {
@@ -58,27 +61,28 @@ export function SettingsRoute() {
   }
 
   return (
-    <div className="page-stack">
-      <Card>
+    <div className="page-stack settings-screen">
+      <Card className="settings-card">
         <p className="eyebrow">{t("settings")}</p>
         <h3>{projectQuery.data?.name ?? t("projectSettingsIntro")}</h3>
+        <p className="muted max-width">Project-level configuration stays local and is edited without leaving the workspace.</p>
         <form className="settings-form" onSubmit={handleSubmit}>
           <label>
             {t("projectDashboard")}
-            <input name="name" defaultValue={projectQuery.data?.name ?? ""} />
+            <Input name="name" defaultValue={projectQuery.data?.name ?? ""} />
           </label>
           <label>
             Settings JSON
-            <textarea
+            <Textarea
               name="settings"
               rows={8}
               defaultValue={JSON.stringify(projectQuery.data?.settings_json ?? {}, null, 2)}
             />
           </label>
           {formError ? <p className="muted">{formError}</p> : null}
-          <button className="button button-primary" type="submit">
+          <Button variant="primary" type="submit">
             {t("saveSettings")}
-          </button>
+          </Button>
         </form>
       </Card>
     </div>

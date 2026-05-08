@@ -9,7 +9,10 @@ import { HomeRoute } from "@/routes/home";
 import { ProjectRoute } from "@/routes/project";
 import { VersionsRoute } from "@/routes/versions";
 import { WarningsRoute } from "@/routes/warnings";
-import { StoryRoute } from "@/routes/story";
+import { StoryHubRoute } from "@/routes/story-hub";
+import { StoryTomesRoute } from "@/routes/story-tomes";
+import { StoryChaptersRoute } from "@/routes/story-chapters";
+import { StoryScenesRoute } from "@/routes/story-scenes";
 import { SettingsRoute } from "@/routes/settings";
 import { RouteError } from "@/routes/error";
 
@@ -27,7 +30,10 @@ export const router = createBrowserRouter([
       { path: "projects/:projectId/exports", Component: ExportsRoute },
       { path: "projects/:projectId/versions", Component: VersionsRoute },
       { path: "projects/:projectId/warnings", Component: WarningsRoute },
-      { path: "projects/:projectId/story", Component: StoryRoute },
+      { path: "projects/:projectId/story", Component: StoryHubRoute },
+      { path: "projects/:projectId/story/tomes", Component: StoryTomesRoute },
+      { path: "projects/:projectId/story/chapters", Component: StoryChaptersRoute },
+      { path: "projects/:projectId/story/scenes", Component: StoryScenesRoute },
       { path: "projects/:projectId/settings", Component: SettingsRoute },
     ],
   },

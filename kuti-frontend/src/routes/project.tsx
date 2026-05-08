@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import { archiveProject, getProject, openProject } from "@/api/client";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
 
@@ -36,20 +38,33 @@ export function ProjectRoute() {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack project-screen">
       <Card>
         <p className="eyebrow">{t("projectDashboard")}</p>
         <h3>{projectQuery.data?.name ?? t("loadingProject")}</h3>
         <p className="muted">{projectQuery.data?.root_path ?? t("fetchingProjectMetadata")}</p>
+        <div className="brand-badges">
+          <Badge>{projectQuery.data?.status ?? t("loading")}</Badge>
+          <Badge variant="outline">{projectQuery.data?.slug ?? "project"}</Badge>
+        </div>
         <div className="project-actions">
-          <button className="button" type="button" onClick={() => openMutation.mutate()}>
+          <Button variant="primary" type="button" onClick={() => openMutation.mutate()}>
             {t("markOpen")}
-          </button>
-          <button className="button button-ghost" type="button" onClick={() => archiveMutation.mutate()}>
+          </Button>
+          <Button variant="ghost" type="button" onClick={() => archiveMutation.mutate()}>
             {t("archive")}
-          </button>
+          </Button>
           <Link to={`/projects/${projectId}/story`} className="button button-secondary">
             {t("storyline")}
+          </Link>
+          <Link to={`/projects/${projectId}/story/tomes`} className="button button-secondary">
+            {t("storyTomes")}
+          </Link>
+          <Link to={`/projects/${projectId}/story/chapters`} className="button button-secondary">
+            {t("storyChapters")}
+          </Link>
+          <Link to={`/projects/${projectId}/story/scenes`} className="button button-secondary">
+            {t("storyScenes")}
           </Link>
           <Link to={`/projects/${projectId}/assets`} className="button button-secondary">
             {t("assetsLibrary")}

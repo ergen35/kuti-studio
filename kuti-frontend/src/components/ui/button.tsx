@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "ghost";
+  variant?: "primary" | "secondary" | "ghost" | "outline";
 };
 
 export function Button({ className, variant = "primary", ...props }: ButtonProps) {

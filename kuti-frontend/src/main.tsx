@@ -12,10 +12,16 @@ const queryClient = new QueryClient();
 
 function AppBootstrap() {
   const locale = useUIStore((state) => state.locale);
+  const theme = useUIStore((state) => state.theme);
 
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
 
   return <RouterProvider router={router} />;
 }

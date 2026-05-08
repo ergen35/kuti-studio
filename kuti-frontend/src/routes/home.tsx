@@ -11,7 +11,10 @@ import {
   openProject,
   type ProjectRead,
 } from "@/api/client";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { formatApiError, useLocale, useT } from "@/lib/i18n";
 import { getConfig, getHealth } from "@/api/client";
 import { Link } from "react-router-dom";
@@ -43,6 +46,10 @@ function ProjectRow({ project }: { project: ProjectRead }) {
         <h4>{project.name}</h4>
         <p className="muted">Slug: {project.slug}</p>
         <p className="muted">Root: {project.root_path}</p>
+        <div className="brand-badges">
+          <Badge>{project.status}</Badge>
+          <Badge variant="outline">{project.slug}</Badge>
+        </div>
       </div>
       <div className="project-actions">
         <Link to={`/projects/${project.id}`} className="button button-secondary">
@@ -89,19 +96,19 @@ export function HomeRoute() {
   };
 
   return (
-    <div className="page-stack">
-      <div className="hero">
+    <div className="page-stack home-screen">
+      <div className="hero home-hero">
         <div>
           <p className="eyebrow">{t("projectHub")}</p>
           <h3>{t("homeHero")}</h3>
-            <p className="muted max-width">
+          <p className="muted max-width">
             {t("homeIntro")}
-            </p>
+          </p>
         </div>
         <div className="hero-card">
           <span className="status-dot" />
           <strong>Local-first workflow</strong>
-          <p>FastAPI backend, React Router shell, and portable data storage.</p>
+          <p>FastAPI backend, React Router shell, portable storage, and project-scoped editing.</p>
         </div>
       </div>
 
@@ -137,10 +144,10 @@ export function HomeRoute() {
             <h4>{t("availableProjects")}</h4>
           </div>
           <form className="inline-form" onSubmit={handleCreate}>
-            <input name="name" placeholder="New project name" aria-label="Project name" />
-            <button className="button button-primary" type="submit">
+            <Input name="name" placeholder="New project name" aria-label="Project name" />
+            <Button variant="primary" type="submit">
               {t("createProject")}
-            </button>
+            </Button>
           </form>
         </div>
 
