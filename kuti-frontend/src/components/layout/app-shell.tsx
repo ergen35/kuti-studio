@@ -28,11 +28,14 @@ export function AppShell() {
           <Link to="/projects/demo-project/assets" className="nav-link">
             Assets Library
           </Link>
+          <Link to="/projects/demo-project/versions" className="nav-link">
+            Versioning
+          </Link>
           <Link to="/projects/demo-project/story" className="nav-link">
             Storyline
           </Link>
           <div className="nav-note">
-            Characters, assets, and storyline all live inside a project context. Open a project dashboard to access the workspace.
+            Characters, assets, storyline, and version history all live inside a project context. Open a project dashboard to access the workspace.
           </div>
           <Link to="/projects/demo-project/settings" className="nav-link">
             Project Settings

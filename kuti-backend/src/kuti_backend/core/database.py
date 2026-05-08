@@ -49,6 +49,7 @@ def init_database(settings: Settings) -> Engine:
     import kuti_backend.assets.models  # noqa: F401
     import kuti_backend.characters.models  # noqa: F401
     import kuti_backend.story.models  # noqa: F401
+    import kuti_backend.versions.models  # noqa: F401
 
     engine = build_engine(settings)
     Base.metadata.create_all(bind=engine)

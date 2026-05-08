@@ -5,6 +5,7 @@ import { CharactersRoute } from "@/routes/characters";
 import { AssetsRoute } from "@/routes/assets";
 import { HomeRoute } from "@/routes/home";
 import { ProjectRoute } from "@/routes/project";
+import { VersionsRoute } from "@/routes/versions";
 import { StoryRoute } from "@/routes/story";
 import { SettingsRoute } from "@/routes/settings";
 
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
       { path: "projects/:projectId", Component: ProjectRoute },
       { path: "projects/:projectId/assets", Component: AssetsRoute },
       { path: "projects/:projectId/characters", Component: CharactersRoute },
+      { path: "projects/:projectId/versions", Component: VersionsRoute },
       { path: "projects/:projectId/story", Component: StoryRoute },
       { path: "projects/:projectId/settings", Component: SettingsRoute },
     ],

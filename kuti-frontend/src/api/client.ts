@@ -328,6 +328,46 @@ export type AssetLinkCreateInput = {
   note?: string;
 };
 
+export type VersionRead = {
+  id: string;
+  project_id: string;
+  branch_name: string;
+  version_index: number;
+  label: string;
+  summary: string;
+  created_at: string;
+};
+
+export type VersionBranchRead = {
+  branch_name: string;
+  version_count: number;
+  latest_version_id: string | null;
+  latest_created_at: string | null;
+};
+
+export type VersionCompareRequest = {
+  left_version_id: string;
+  right_version_id: string;
+};
+
+export type VersionCompareRead = {
+  left: VersionRead;
+  right: VersionRead;
+  project_changes: string[];
+  counts_delta: Record<string, number>;
+};
+
+export type VersionCreateInput = {
+  branch_name?: string;
+  label?: string;
+  summary?: string;
+};
+
+export type VersionRestoreInput = {
+  label?: string | null;
+  summary?: string | null;
+};
+
 const apiBaseUrl = import.meta.env.VITE_KUTI_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string): Promise<T> {
@@ -619,4 +659,33 @@ export function createAssetLink(projectId: string, assetId: string, payload: Ass
 
 export function deleteAssetLink(projectId: string, assetId: string, linkId: string) {
   return requestVoid(`/api/projects/${projectId}/assets/${assetId}/links/${linkId}`, { method: "DELETE" });
+}
+
+export function listVersions(projectId: string) {
+  return request<VersionRead[]>(`/api/projects/${projectId}/versions`);
+}
+
+export function listVersionBranches(projectId: string) {
+  return request<VersionBranchRead[]>(`/api/projects/${projectId}/versions/branches`);
+}
+
+export function createVersion(projectId: string, payload: VersionCreateInput) {
+  return requestJson<VersionRead>(`/api/projects/${projectId}/versions`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function compareVersions(projectId: string, payload: VersionCompareRequest) {
+  return requestJson<VersionCompareRead>(`/api/projects/${projectId}/versions/compare`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function restoreVersion(projectId: string, versionId: string, payload?: VersionRestoreInput) {
+  return requestJson<VersionRead>(`/api/projects/${projectId}/versions/${versionId}/restore`, {
+    method: "POST",
+    body: payload ? JSON.stringify(payload) : JSON.stringify({}),
+  });
 }

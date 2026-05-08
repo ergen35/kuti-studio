@@ -52,6 +52,9 @@ export function ProjectRoute() {
           <Link to={`/projects/${projectId}/assets`} className="button button-secondary">
             Assets
           </Link>
+          <Link to={`/projects/${projectId}/versions`} className="button button-secondary">
+            Versions
+          </Link>
           <Link to={`/projects/${projectId}/characters`} className="button button-secondary">
             Characters
           </Link>

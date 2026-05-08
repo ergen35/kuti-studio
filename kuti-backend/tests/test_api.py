@@ -375,6 +375,122 @@ def test_asset_import_and_usage_links(tmp_path: Path, monkeypatch) -> None:
     assert not asset_file.exists()
 
 
+def test_versioning_checkpoints_compare_and_restore(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
+    get_settings.cache_clear()
+    app = create_app(Settings(data_dir=tmp_path / "kuti-data", environment="test"))
+    client = TestClient(app)
+
+    project = client.post("/api/projects", json={"name": "Signal Archive", "status": "draft"}).json()
+    project_id = project["id"]
+
+    first_character = client.post(
+        f"/api/projects/{project_id}/characters",
+        json={"name": "Mina Vale", "narrative_role": "lead"},
+    ).json()
+    assert first_character["slug"] == "mina-vale"
+
+    version_one = client.post(
+        f"/api/projects/{project_id}/versions",
+        json={"branch_name": "main", "label": "Initial draft", "summary": "First capture"},
+    )
+    assert version_one.status_code == 201
+    v1 = version_one.json()
+    assert v1["version_index"] == 1
+
+    client.patch(
+        f"/api/projects/{project_id}",
+        json={"name": "Signal Archive Revised", "status": "active"},
+    )
+
+    second_character = client.post(
+        f"/api/projects/{project_id}/characters",
+        json={"name": "Orin Gale", "narrative_role": "supporting"},
+    ).json()
+    assert second_character["slug"] == "orin-gale"
+
+    tome = client.post(
+        f"/api/projects/{project_id}/story/tomes",
+        json={"title": "Volume One"},
+    ).json()
+    assert tome["slug"] == "volume-one"
+
+    version_two = client.post(
+        f"/api/projects/{project_id}/versions",
+        json={"branch_name": "main", "label": "Revision one", "summary": "Added a second lead and a tome"},
+    )
+    assert version_two.status_code == 201
+    v2 = version_two.json()
+    assert v2["version_index"] == 2
+
+    client.patch(f"/api/projects/{project_id}", json={"status": "maintenance"})
+    client.post(f"/api/projects/{project_id}/story/chapters", json={"tome_id": tome["id"], "title": "Opening"})
+
+    version_three = client.post(
+        f"/api/projects/{project_id}/versions",
+        json={"branch_name": "main", "label": "Working copy", "summary": "Temporary maintenance branch state"},
+    )
+    assert version_three.status_code == 201
+    v3 = version_three.json()
+    assert v3["version_index"] == 3
+
+    comparison = client.post(
+        f"/api/projects/{project_id}/versions/compare",
+        json={"left_version_id": v1["id"], "right_version_id": v2["id"]},
+    )
+    assert comparison.status_code == 200
+    compare_payload = comparison.json()
+    assert "project.name" in compare_payload["project_changes"]
+    assert "project.status" in compare_payload["project_changes"]
+    assert compare_payload["counts_delta"]["characters"] == 1
+    assert compare_payload["counts_delta"]["tomes"] == 1
+    assert compare_payload["counts_delta"]["relations"] == 0
+    assert compare_payload["counts_delta"]["story_references"] == 0
+
+    client.patch(f"/api/projects/{project_id}", json={"name": "Signal Archive Final"})
+
+    version_four = client.post(
+        f"/api/projects/{project_id}/versions",
+        json={"branch_name": "main", "label": "Pre-restore", "summary": "Later project state"},
+    )
+    assert version_four.status_code == 201
+    assert version_four.json()["version_index"] == 4
+
+    restore = client.post(
+        f"/api/projects/{project_id}/versions/{v2['id']}/restore",
+        json={"label": "Restored from revision one", "summary": "Checkpoint after rollback"},
+    )
+    assert restore.status_code == 201
+    restored = restore.json()
+    assert restored["version_index"] == 5
+    assert restored["label"] == "Restored from revision one"
+
+    project_after_restore = client.get(f"/api/projects/{project_id}")
+    assert project_after_restore.status_code == 200
+    assert project_after_restore.json()["name"] == "Signal Archive Revised"
+    assert project_after_restore.json()["status"] == "active"
+
+    story_after_restore = client.get(f"/api/projects/{project_id}/story")
+    assert story_after_restore.status_code == 200
+    assert len(story_after_restore.json()["tomes"]) == 1
+    assert len(story_after_restore.json()["chapters"]) == 0
+
+    versions_after_restore = client.get(f"/api/projects/{project_id}/versions")
+    assert versions_after_restore.status_code == 200
+    assert [item["version_index"] for item in versions_after_restore.json()] == [5, 4, 3]
+
+    branches_after_restore = client.get(f"/api/projects/{project_id}/versions/branches")
+    assert branches_after_restore.status_code == 200
+    assert branches_after_restore.json() == [
+        {
+            "branch_name": "main",
+            "version_count": 3,
+            "latest_version_id": restored["id"],
+            "latest_created_at": restored["created_at"],
+        }
+    ]
+
+
 def test_character_routes_require_existing_project(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("KUTI_DATA_DIR", str(tmp_path / "kuti-data"))
     get_settings.cache_clear()
