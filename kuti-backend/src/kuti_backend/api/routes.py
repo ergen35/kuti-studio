@@ -1,17 +1,23 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from kuti_backend.core.settings import get_settings
+from kuti_backend.projects.api import router as projects_router
 
 router = APIRouter()
+router.include_router(projects_router)
+
+
+def _settings(request: Request):
+    return getattr(request.app.state, "settings", get_settings())
 
 
 @router.get("/health")
-def health() -> dict[str, object]:
-    settings = get_settings()
+def health(request: Request) -> dict[str, object]:
+    settings = _settings(request)
     return {
         "status": "ok",
         "service": settings.app_name,
@@ -22,8 +28,8 @@ def health() -> dict[str, object]:
 
 
 @router.get("/config")
-def config() -> dict[str, object]:
-    settings = get_settings()
+def config(request: Request) -> dict[str, object]:
+    settings = _settings(request)
     return {
         "appName": settings.app_name,
         "appVersion": settings.app_version,

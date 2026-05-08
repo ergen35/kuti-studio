@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+from functools import lru_cache
+from pathlib import Path
+
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker
+
+from kuti_backend.core.settings import Settings
+
+
+def _database_path(settings: Settings) -> Path:
+    db_dir = settings.data_dir / "db"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    return db_dir / "kuti.sqlite"
+
+
+@lru_cache(maxsize=8)
+def get_engine(database_url: str) -> Engine:
+    return create_engine(database_url, future=True, connect_args={"check_same_thread": False})
+
+
+def build_engine(settings: Settings) -> Engine:
+    return get_engine(f"sqlite:///{_database_path(settings)}")
+
+
+def build_session_factory(engine: Engine):
+    return sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+
+def init_database(settings: Settings) -> Engine:
+    from kuti_backend.projects.models import Base
+
+    engine = build_engine(settings)
+    Base.metadata.create_all(bind=engine)
+    return engine
