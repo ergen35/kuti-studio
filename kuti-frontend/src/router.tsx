@@ -11,11 +11,13 @@ import { VersionsRoute } from "@/routes/versions";
 import { WarningsRoute } from "@/routes/warnings";
 import { StoryRoute } from "@/routes/story";
 import { SettingsRoute } from "@/routes/settings";
+import { RouteError } from "@/routes/error";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: AppShell,
+    errorElement: <RouteError />,
     children: [
       { index: true, Component: HomeRoute },
       { path: "projects/:projectId", Component: ProjectRoute },

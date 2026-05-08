@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { getProject, updateProject } from "@/api/client";
@@ -11,6 +12,7 @@ export function SettingsRoute() {
   const { projectId } = useParams();
   const queryClient = useQueryClient();
   const t = useT();
+  const [formError, setFormError] = useState<string | null>(null);
   const projectQuery = useQuery({
     queryKey: ["project", projectId],
     queryFn: () => getProject(projectId ?? ""),
@@ -30,15 +32,29 @@ export function SettingsRoute() {
     const formData = new FormData(event.currentTarget);
     const name = String(formData.get("name") ?? "").trim();
     const rawSettings = String(formData.get("settings") ?? "{}");
+    let settings_json: Record<string, unknown>;
+
+    try {
+      const parsed = JSON.parse(rawSettings) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("invalid-settings-shape");
+      }
+      settings_json = parsed as Record<string, unknown>;
+    } catch {
+      setFormError(t("errorSettingsJsonInvalid"));
+      return;
+    }
+
+    setFormError(null);
 
     updateMutation.mutate({
       name: name || undefined,
-      settings_json: JSON.parse(rawSettings),
+      settings_json,
     });
   };
 
   if (!projectId) {
-    return <p className="muted">Missing project id.</p>;
+    return <p className="muted">{t("missingProjectId")}</p>;
   }
 
   return (
@@ -59,6 +75,7 @@ export function SettingsRoute() {
               defaultValue={JSON.stringify(projectQuery.data?.settings_json ?? {}, null, 2)}
             />
           </label>
+          {formError ? <p className="muted">{formError}</p> : null}
           <button className="button button-primary" type="submit">
             {t("saveSettings")}
           </button>

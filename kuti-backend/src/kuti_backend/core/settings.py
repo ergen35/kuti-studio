@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     environment: str = Field(default="development")
     locale: str = Field(default="en")
     data_dir: Path = Field(default_factory=default_data_dir)
+    trusted_origins_raw: str = Field(default="", validation_alias="TRUSTED_ORIGINS")
 
     @property
     def project_data_dir(self) -> Path:
@@ -38,6 +39,10 @@ class Settings(BaseSettings):
     @property
     def openapi_path(self) -> str:
         return "/api/openapi.json"
+
+    @property
+    def trusted_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.trusted_origins_raw.split(",") if origin.strip()]
 
     # Model provider configuration
     sora_2_base_url: str | None = None

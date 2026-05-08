@@ -41,6 +41,11 @@ const en: TranslationTable = {
   homeIntro: "The first phase of Kuti Studio establishes the shell, the contract, and the project entry point. Projects will appear here once the local data model lands.",
   backendStatus: "Backend status",
   runtimeConfig: "Runtime config",
+  loadingProject: "Loading project...",
+  fetchingProjectMetadata: "Fetching project metadata from the local API.",
+  queryingLocalApi: "Querying the local API...",
+  missingProjectId: "Missing project id.",
+  backendUnavailable: "Backend not reachable yet. Start kuti-backend on port 8000.",
   availableProjects: "Available projects",
   noProjects: "No projects yet. Create the first project to initialize the local workspace.",
   projectOpen: "Open",
@@ -51,6 +56,8 @@ const en: TranslationTable = {
   storage: "Storage",
   projectSettingsIntro: "Project preferences",
   saveSettings: "Save settings",
+  errorSettingsJsonInvalid: "Project settings must be valid JSON.",
+  routeUnavailable: "Route unavailable",
   errorLabel: "Error",
   errorUnknown: "Something went wrong.",
   errorProjectNotFound: "Project not found.",
@@ -122,6 +129,11 @@ const fr: TranslationTable = {
   homeIntro: "La phase 0 de Kuti Studio pose le shell, le contrat et le point d'entree projet. Les projets apparaitront ici une fois le modele local en place.",
   backendStatus: "Etat du backend",
   runtimeConfig: "Configuration runtime",
+  loadingProject: "Chargement du projet...",
+  fetchingProjectMetadata: "Recuperation des metadonnees du projet depuis l'API locale.",
+  queryingLocalApi: "Interrogation de l'API locale...",
+  missingProjectId: "Identifiant de projet manquant.",
+  backendUnavailable: "Le backend est encore inaccessible. Demarrez kuti-backend sur le port 8000.",
   availableProjects: "Projets disponibles",
   noProjects: "Aucun projet pour le moment. Creez le premier projet pour initialiser l'espace local.",
   projectOpen: "Ouvrir",
@@ -132,6 +144,8 @@ const fr: TranslationTable = {
   storage: "Stockage",
   projectSettingsIntro: "Preferences projet",
   saveSettings: "Enregistrer les parametres",
+  errorSettingsJsonInvalid: "Les parametres du projet doivent etre du JSON valide.",
+  routeUnavailable: "Route indisponible",
   errorLabel: "Erreur",
   errorUnknown: "Une erreur est survenue.",
   errorProjectNotFound: "Projet introuvable.",
@@ -248,6 +262,8 @@ export function formatApiError(locale: Locale, error: ApiErrorLike) {
       return translate(locale, "errorModelNotImplemented");
     case "asset_source_missing":
       return translate(locale, "errorAssetSourceMissing");
+    case "settings_json_invalid":
+      return translate(locale, "errorSettingsJsonInvalid");
     case "asset_id_must_match_route_asset":
       return translate(locale, "errorAssetIdMustMatchRouteAsset");
     case "source_character_id_must_match_route_character":

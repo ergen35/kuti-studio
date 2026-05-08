@@ -32,15 +32,15 @@ export function ProjectRoute() {
   });
 
   if (!projectId) {
-    return <p className="muted">Missing project id.</p>;
+    return <p className="muted">{t("missingProjectId")}</p>;
   }
 
   return (
     <div className="page-stack">
       <Card>
         <p className="eyebrow">{t("projectDashboard")}</p>
-        <h3>{projectQuery.data?.name ?? "Loading project..."}</h3>
-        <p className="muted">{projectQuery.data?.root_path ?? "Fetching project metadata from the local API."}</p>
+        <h3>{projectQuery.data?.name ?? t("loadingProject")}</h3>
+        <p className="muted">{projectQuery.data?.root_path ?? t("fetchingProjectMetadata")}</p>
         <div className="project-actions">
           <button className="button" type="button" onClick={() => openMutation.mutate()}>
             {t("markOpen")}

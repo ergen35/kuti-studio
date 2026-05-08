@@ -108,18 +108,20 @@ export function HomeRoute() {
       <div className="grid-2">
         <Card>
           <p className="eyebrow">{t("backendStatus")}</p>
-          <h4>{healthQuery.data?.status ?? "checking..."}</h4>
+          <h4>{healthQuery.data?.status ?? t("loading")}</h4>
           <p className="muted">
             {healthQuery.isError
-              ? formatApiError(locale, healthQuery.error as ApiError)
+              ? healthQuery.error instanceof ApiError
+                ? formatApiError(locale, healthQuery.error)
+                : t("backendUnavailable")
               : healthQuery.data
                 ? `${healthQuery.data.service} v${healthQuery.data.version}`
-                : "Querying the local API..."}
+                : t("queryingLocalApi")}
           </p>
         </Card>
         <Card>
           <p className="eyebrow">{t("runtimeConfig")}</p>
-          <h4>{configQuery.data?.environment ?? "loading..."}</h4>
+          <h4>{configQuery.data?.environment ?? t("loading")}</h4>
           <p className="muted">
             {configQuery.data
               ? `Data root: ${configQuery.data.dataDir}`

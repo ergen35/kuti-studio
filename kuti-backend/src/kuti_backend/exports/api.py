@@ -9,7 +9,14 @@ from sqlalchemy.orm import Session
 
 from kuti_backend.core.database import get_session
 from kuti_backend.core.settings import Settings, get_settings
-from kuti_backend.api.errors import EXPORT_ARTIFACT_NOT_AVAILABLE, EXPORT_ARTIFACT_NOT_FOUND, EXPORT_NOT_FOUND, PROJECT_NOT_FOUND, raise_api_error
+from kuti_backend.api.errors import (
+    EXPORT_ARTIFACT_NOT_AVAILABLE,
+    EXPORT_ARTIFACT_NOT_FOUND,
+    EXPORT_FORMAT_INVALID,
+    EXPORT_NOT_FOUND,
+    PROJECT_NOT_FOUND,
+    raise_api_error,
+)
 from kuti_backend.exports.models import ExportFormat, ExportKind, ExportStatus
 from kuti_backend.exports.repository import create_export, get_export, list_exports
 from kuti_backend.exports.schemas import ExportCreate, ExportRead
@@ -55,8 +62,14 @@ def read_exports(
 @router.post("/projects/{project_id}/exports", response_model=ExportRead, status_code=status.HTTP_201_CREATED)
 def create_export_route(request: Request, session: SessionDep, project_id: str, payload: ExportCreate) -> ExportRead:
     _project_or_404(session, project_id)
-    export = create_export(session, _settings(request), project_id, payload)
-    return ExportRead.model_validate(export)
+    try:
+        export = create_export(session, _settings(request), project_id, payload)
+        return ExportRead.model_validate(export)
+    except ValueError as exc:
+        message = str(exc)
+        if message.startswith("unsupported export format"):
+            raise_api_error(400, EXPORT_FORMAT_INVALID)
+        raise_api_error(400, message)
 
 
 @router.get("/projects/{project_id}/exports/{export_id}", response_model=ExportRead)
