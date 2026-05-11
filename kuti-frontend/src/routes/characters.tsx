@@ -22,6 +22,7 @@ import {
   type VoiceSampleRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { queryKeys } from "@/lib/query-keys";
 
 function splitLines(value: string) {
   return value
@@ -137,7 +138,7 @@ export function CharactersRoute() {
   );
 
   const charactersQuery = useQuery({
-    queryKey: ["characters", projectId],
+    queryKey: queryKeys.characters(projectId ?? ""),
     queryFn: () => listCharacters(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -187,14 +188,14 @@ export function CharactersRoute() {
   }, [replaceSearchParams, selectedCharacter?.id, selectedCharacterId]);
 
   const detailQuery = useQuery({
-    queryKey: ["character", projectId, selectedCharacter?.id],
+    queryKey: queryKeys.character(projectId ?? "", selectedCharacter?.id),
     queryFn: () => getCharacter(projectId ?? "", selectedCharacter?.id ?? ""),
     enabled: Boolean(projectId && selectedCharacter?.id),
   });
 
   const refreshCharacters = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["characters", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["character", projectId, selectedCharacter?.id] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.characters(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.character(projectId ?? "", selectedCharacter?.id) });
   };
 
   const createMutation = useMutation({
@@ -232,7 +233,7 @@ export function CharactersRoute() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteCharacter(projectId ?? "", selectedCharacter?.id ?? ""),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["characters", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.characters(projectId ?? "") });
       replaceSearchParams((params) => {
         params.delete("characterId");
       });

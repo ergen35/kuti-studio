@@ -17,6 +17,7 @@ import {
   type ExportStatus,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { queryKeys } from "@/lib/query-keys";
 
 const kindLabels: Record<ExportKind, string> = {
   work: "Work export",
@@ -90,7 +91,7 @@ export function ExportsRoute() {
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>("json");
 
   const exportsQuery = useQuery({
-    queryKey: ["exports", projectId],
+    queryKey: queryKeys.exports(projectId ?? ""),
     queryFn: () => listExports(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -126,12 +127,12 @@ export function ExportsRoute() {
   }, [selectedExport?.id]);
 
   const refreshExports = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["exports", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["export", projectId, selectedExport?.id] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.exports(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.export(projectId ?? "", selectedExport?.id) });
   };
 
   const selectedExportQuery = useQuery({
-    queryKey: ["export", projectId, selectedExport?.id],
+    queryKey: queryKeys.export(projectId ?? "", selectedExport?.id),
     queryFn: () => getExport(projectId ?? "", selectedExport?.id ?? ""),
     enabled: Boolean(projectId && selectedExport?.id),
   });

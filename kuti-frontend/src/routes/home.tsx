@@ -17,13 +17,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatApiError, useLocale, useT } from "@/lib/i18n";
 import { getConfig, getHealth } from "@/api/client";
+import { queryKeys } from "@/lib/query-keys";
 import { Link } from "react-router-dom";
 
 function ProjectRow({ project }: { project: ProjectRead }) {
   const queryClient = useQueryClient();
 
   const invalidate = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["projects"] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.projects });
   };
 
   const openMutation = useMutation({
@@ -73,14 +74,14 @@ export function HomeRoute() {
   const queryClient = useQueryClient();
   const locale = useLocale();
   const t = useT();
-  const configQuery = useQuery({ queryKey: ["config"], queryFn: getConfig });
-  const healthQuery = useQuery({ queryKey: ["health"], queryFn: getHealth });
-  const projectsQuery = useQuery({ queryKey: ["projects"], queryFn: listProjects });
+  const configQuery = useQuery({ queryKey: queryKeys.config, queryFn: getConfig });
+  const healthQuery = useQuery({ queryKey: queryKeys.health, queryFn: getHealth });
+  const projectsQuery = useQuery({ queryKey: queryKeys.projects, queryFn: listProjects });
 
   const createMutation = useMutation({
     mutationFn: createProject,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects });
     },
   });
 

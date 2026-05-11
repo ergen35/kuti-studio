@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { Card } from "@/components/ui/card";
+import { queryKeys } from "@/lib/query-keys";
 import { useT } from "@/lib/i18n";
 
 function normalizeText(value: FormDataEntryValue | null) {
@@ -75,19 +76,19 @@ export function AssetsRoute() {
   const [targetKind, setTargetKind] = useState<"character" | "tome" | "chapter" | "scene">("character");
 
   const assetsQuery = useQuery({
-    queryKey: ["assets", projectId],
+    queryKey: queryKeys.assets(projectId ?? ""),
     queryFn: () => listAssets(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
   const charactersQuery = useQuery({
-    queryKey: ["assets-target-characters", projectId],
+    queryKey: queryKeys.characters(projectId ?? ""),
     queryFn: () => listCharacters(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
   const storyQuery = useQuery({
-    queryKey: ["assets-target-story", projectId],
+    queryKey: queryKeys.story(projectId ?? ""),
     queryFn: () => getStory(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -116,7 +117,7 @@ export function AssetsRoute() {
   const [targetId, setTargetId] = useState<string>("");
 
   const assetDetailQuery = useQuery({
-    queryKey: ["asset", projectId, selectedAsset?.id],
+    queryKey: queryKeys.asset(projectId ?? "", selectedAsset?.id),
     queryFn: () => getAsset(projectId ?? "", selectedAsset?.id ?? ""),
     enabled: Boolean(projectId && selectedAsset?.id),
   });
@@ -140,8 +141,8 @@ export function AssetsRoute() {
   }, [selectedTargetOptions, targetId]);
 
   const refreshAssets = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["assets", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["asset", projectId, selectedAsset?.id] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.assets(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.asset(projectId ?? "", selectedAsset?.id) });
   };
 
   const importMutation = useMutation({

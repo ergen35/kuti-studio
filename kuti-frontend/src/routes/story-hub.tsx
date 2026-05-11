@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getStory } from "@/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { StoryWorkspaceFrame } from "@/components/layout/story-workspace";
+import { queryKeys } from "@/lib/query-keys";
 import { useT } from "@/lib/i18n";
 
 function Stat({ label, value }: { label: string; value: string | number }) {
@@ -21,7 +23,7 @@ export function StoryHubRoute() {
   const t = useT();
 
   const storyQuery = useQuery({
-    queryKey: ["story", projectId],
+    queryKey: queryKeys.story(projectId ?? ""),
     queryFn: () => getStory(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -36,24 +38,25 @@ export function StoryHubRoute() {
   const orphanRefs = storyQuery.data?.orphan_references ?? [];
 
   return (
-    <div className="page-stack story-screen story-hub">
-      <div className="hero story-hero">
-        <div>
-          <p className="eyebrow">{t("storyHub")}</p>
-          <h3>{t("storyHubTitle")}</h3>
-          <p className="muted max-width">{t("storyHubIntro")}</p>
-        </div>
-        <Card className="hero-card story-hub-card">
-          <span className="status-dot" />
-          <strong>
-            {tomes.length} tomes / {chapters.length} chapters / {scenes.length} scenes
-          </strong>
-          <p>
-            The story system is split into focused screens so each layer can breathe.
-          </p>
-        </Card>
-      </div>
-
+    <StoryWorkspaceFrame
+      eyebrow={t("storyHub")}
+      title={t("storyHubTitle")}
+      intro={t("storyHubIntro")}
+      stats={[
+        { label: t("storyTomes"), value: tomes.length },
+        { label: t("storyChapters"), value: chapters.length },
+        { label: t("storyScenes"), value: scenes.length },
+        { label: "Orphans", value: orphanRefs.length },
+      ]}
+      backHref={`/projects/${projectId}`}
+      backLabel={t("backToDashboard")}
+      asideTitle="Focused editing"
+      asideBody={
+        <p>
+          Create tomes, chapters, and scenes on their own screens to keep the narrative tree easy to scan and edit.
+        </p>
+      }
+    >
       <div className="story-hub-grid">
         <Card className="story-panel story-nav-card">
           <p className="eyebrow">{t("storyTomes")}</p>
@@ -119,13 +122,6 @@ export function StoryHubRoute() {
           </Link>
         </Card>
       </div>
-
-      <div className="project-actions">
-        <Link to={`/projects/${projectId}`} className="button button-secondary">
-          {t("backToDashboard")}
-        </Link>
-        <span className="status-pill">{t("storyHub")}</span>
-      </div>
-    </div>
+    </StoryWorkspaceFrame>
   );
 }

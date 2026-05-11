@@ -12,6 +12,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { StoryWorkspaceFrame } from "@/components/layout/story-workspace";
+import { queryKeys } from "@/lib/query-keys";
 import { useT } from "@/lib/i18n";
 import { normalizeText, parseOrder, parseStatus, replaceSearchParams, slugHint } from "@/routes/story-shared";
 
@@ -39,7 +41,7 @@ export function StoryTomesRoute() {
   const selectedTomeId = searchParams.get("tomeId");
 
   const storyQuery = useQuery({
-    queryKey: ["story", projectId],
+    queryKey: queryKeys.story(projectId ?? ""),
     queryFn: () => getStory(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -68,7 +70,7 @@ export function StoryTomesRoute() {
   }, [searchParams, selectedTomeId, setSearchParams, tomes]);
 
   const refreshStory = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["story", projectId] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.story(projectId ?? "") });
   };
 
   const createMutation = useMutation({
@@ -131,35 +133,34 @@ export function StoryTomesRoute() {
     return <p className="muted">{t("missingProjectId")}</p>;
   }
 
-  return (
-    <div className="page-stack story-screen story-tomes">
-      <div className="hero story-hero">
-        <div>
-          <p className="eyebrow">{t("storyTomes")}</p>
-          <h3>{t("storyTomesIntro")}</h3>
-          <p className="muted max-width">Volumes are edited on their own screen so structure stays readable.</p>
-        </div>
-        <Card className="hero-card">
-          <span className="status-dot" />
-          <strong>{tomes.length} tomes</strong>
-          <p>{chapters.length} chapters attached across the current story.</p>
-        </Card>
-      </div>
+  const selectedTomeChapters = selectedTome ? chapters.filter((chapter) => chapter.tome_id === selectedTome.id) : [];
 
-      <div className="story-toolbar">
-        <Link to={`/projects/${projectId}/story`} className="button button-secondary">
-          {t("backToStoryHub")}
-        </Link>
-        <div className="project-actions">
+  return (
+    <StoryWorkspaceFrame
+      eyebrow={t("storyTomes")}
+      title={t("storyTomesIntro")}
+      intro="Volumes are edited on their own screen so structure stays readable."
+      stats={[
+        { label: t("storyTomes"), value: tomes.length },
+        { label: t("storyChapters"), value: chapters.length },
+        { label: "Selected chapters", value: selectedTomeChapters.length },
+        { label: "Draft coverage", value: selectedTome?.synopsis ? "Filled" : "Empty" },
+      ]}
+      backHref={`/projects/${projectId}/story`}
+      backLabel={t("backToStoryHub")}
+      asideTitle="Volume layer"
+      asideBody={<p>Keep one tone, one arc, and one clear order per tome. This screen is the top layer of the narrative tree.</p>}
+      actions={
+        <>
           <Link to={`/projects/${projectId}/story/chapters`} className="button button-secondary">
             {t("storyChapters")}
           </Link>
           <Link to={`/projects/${projectId}/story/scenes`} className="button button-secondary">
             {t("storyScenes")}
           </Link>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       <div className="story-layout">
         <Card>
           <div className="section-head">
@@ -222,7 +223,7 @@ export function StoryTomesRoute() {
                   <span>Slug</span>
                 </div>
                 <div className="story-stat">
-                  <strong>{chapters.filter((chapter) => chapter.tome_id === selectedTome.id).length}</strong>
+                  <strong>{selectedTomeChapters.length}</strong>
                   <span>Chapters</span>
                 </div>
                 <div className="story-stat">
@@ -263,6 +264,6 @@ export function StoryTomesRoute() {
           )}
         </Card>
       </div>
-    </div>
+    </StoryWorkspaceFrame>
   );
 }

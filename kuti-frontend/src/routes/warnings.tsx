@@ -15,6 +15,7 @@ import {
   type WarningStatus,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { queryKeys } from "@/lib/query-keys";
 
 const kindLabels: Record<WarningKind, string> = {
   missing_character_reference: "Missing character",
@@ -85,7 +86,7 @@ export function WarningsRoute() {
   const [noteDraft, setNoteDraft] = useState("");
 
   const warningsQuery = useQuery({
-    queryKey: ["warnings", projectId],
+    queryKey: queryKeys.warnings(projectId ?? ""),
     queryFn: () => listWarnings(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -121,7 +122,7 @@ export function WarningsRoute() {
   }, [selectedWarning?.id]);
 
   const refreshWarnings = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["warnings", projectId] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.warnings(projectId ?? "") });
   };
 
   const scanMutation = useMutation({

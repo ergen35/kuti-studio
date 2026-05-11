@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 
 import { Link, NavLink, Outlet, useNavigation, useParams } from "react-router-dom";
+import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { LocaleToggle } from "@/components/ui/locale-toggle";
@@ -31,7 +32,10 @@ export function AppShell() {
   const t = useT();
   const navigation = useNavigation();
   const { projectId } = useParams();
+  const isFetching = useIsFetching();
+  const isMutating = useIsMutating();
   const isNavigating = navigation.state !== "idle";
+  const isBusy = isNavigating || isFetching > 0 || isMutating > 0;
   const workspaceLabel = projectId ? `${t("projectDashboard")} · ${projectId.slice(0, 8)}` : t("projectHub");
 
   return (
@@ -109,7 +113,7 @@ export function AppShell() {
       </aside>
 
       <main className="workspace">
-        {isNavigating ? <div className="workspace-progress" aria-hidden="true" /> : null}
+        {isBusy ? <div className="workspace-progress" aria-hidden="true" /> : null}
 
         <header className="topbar">
           <div className="topbar-copy">
@@ -120,10 +124,12 @@ export function AppShell() {
           <div className="topbar-badges">
             <Badge variant="outline">{projectId ? projectId.slice(0, 8) : "hub"}</Badge>
             <Badge>{theme}</Badge>
+            <Badge variant="secondary">{isMutating > 0 ? `${isMutating} saving` : "idle"}</Badge>
+            <Badge variant="outline">{isFetching > 0 ? `${isFetching} loading` : "synced"}</Badge>
           </div>
         </header>
 
-        <section className="content-surface">
+        <section className="content-surface" aria-busy={isBusy}>
           <Outlet />
         </section>
       </main>

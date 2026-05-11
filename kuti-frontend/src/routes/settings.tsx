@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { getProject, updateProject } from "@/api/client";
+import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,7 @@ export function SettingsRoute() {
   const t = useT();
   const [formError, setFormError] = useState<string | null>(null);
   const projectQuery = useQuery({
-    queryKey: ["project", projectId],
+    queryKey: queryKeys.project(projectId ?? ""),
     queryFn: () => getProject(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -25,8 +26,8 @@ export function SettingsRoute() {
   const updateMutation = useMutation({
     mutationFn: updateProject.bind(null, projectId ?? ""),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.project(projectId ?? "") });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects });
     },
   });
 

@@ -15,6 +15,7 @@ import {
   type VersionRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { queryKeys } from "@/lib/query-keys";
 
 function normalizeText(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
@@ -67,13 +68,13 @@ export function VersionsRoute() {
   const [restoreSummary, setRestoreSummary] = useState("");
 
   const versionsQuery = useQuery({
-    queryKey: ["versions", projectId],
+    queryKey: queryKeys.versions(projectId ?? ""),
     queryFn: () => listVersions(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
   const branchesQuery = useQuery({
-    queryKey: ["version-branches", projectId],
+    queryKey: queryKeys.versionBranches(projectId ?? ""),
     queryFn: () => listVersionBranches(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -94,7 +95,7 @@ export function VersionsRoute() {
   }, [compareLeftId, compareRightId, versions]);
 
   const compareQuery = useQuery({
-    queryKey: ["version-compare", projectId, compareSelection?.left.id, compareSelection?.right.id],
+    queryKey: queryKeys.versionCompare(projectId ?? "", compareSelection?.left.id, compareSelection?.right.id),
     queryFn: () => compareVersions(projectId ?? "", { left_version_id: compareSelection!.left.id, right_version_id: compareSelection!.right.id }),
     enabled: Boolean(projectId && compareSelection && compareSelection.left.id !== compareSelection.right.id),
   });
@@ -118,9 +119,9 @@ export function VersionsRoute() {
   }, [selectedVersion?.id]);
 
   const refreshVersions = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["versions", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["version-branches", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["version-compare", projectId] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.versions(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.versionBranches(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.versionCompare(projectId ?? "") });
   };
 
   const createMutation = useMutation({

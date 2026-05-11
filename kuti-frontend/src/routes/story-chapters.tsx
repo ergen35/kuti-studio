@@ -12,6 +12,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { StoryWorkspaceFrame } from "@/components/layout/story-workspace";
+import { queryKeys } from "@/lib/query-keys";
 import { useT } from "@/lib/i18n";
 import { normalizeText, parseOrder, parseStatus, replaceSearchParams, slugHint } from "@/routes/story-shared";
 
@@ -40,7 +42,7 @@ export function StoryChaptersRoute() {
   const selectedChapterId = searchParams.get("chapterId");
 
   const storyQuery = useQuery({
-    queryKey: ["story", projectId],
+    queryKey: queryKeys.story(projectId ?? ""),
     queryFn: () => getStory(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -96,7 +98,7 @@ export function StoryChaptersRoute() {
   }, [searchParams, selectedChapterId, selectedTome, setSearchParams, visibleChapters]);
 
   const refreshStory = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["story", projectId] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.story(projectId ?? "") });
   };
 
   const createMutation = useMutation({
@@ -161,35 +163,34 @@ export function StoryChaptersRoute() {
     return <p className="muted">{t("missingProjectId")}</p>;
   }
 
-  return (
-    <div className="page-stack story-screen story-chapters">
-      <div className="hero story-hero">
-        <div>
-          <p className="eyebrow">{t("storyChapters")}</p>
-          <h3>{t("storyChaptersIntro")}</h3>
-          <p className="muted max-width">Chapters are edited in their own layer so tome context stays visible.</p>
-        </div>
-        <Card className="hero-card">
-          <span className="status-dot" />
-          <strong>{chapters.length} chapters</strong>
-          <p>{tomes.length} tomes provide the parent structure.</p>
-        </Card>
-      </div>
+  const selectedTomeChapters = selectedTome ? chapters.filter((chapter) => chapter.tome_id === selectedTome.id) : [];
 
-      <div className="story-toolbar">
-        <Link to={`/projects/${projectId}/story`} className="button button-secondary">
-          {t("backToStoryHub")}
-        </Link>
-        <div className="project-actions">
+  return (
+    <StoryWorkspaceFrame
+      eyebrow={t("storyChapters")}
+      title={t("storyChaptersIntro")}
+      intro="Chapters are edited in their own layer so tome context stays visible."
+      stats={[
+        { label: t("storyTomes"), value: tomes.length },
+        { label: t("storyChapters"), value: chapters.length },
+        { label: "Selected tome chapters", value: selectedTomeChapters.length },
+        { label: "Chapter status", value: selectedChapter?.status ?? "—" },
+      ]}
+      backHref={`/projects/${projectId}/story`}
+      backLabel={t("backToStoryHub")}
+      asideTitle="Chapter layer"
+      asideBody={<p>Use chapters to sequence beats within a tome while keeping the selected parent volume visible.</p>}
+      actions={
+        <>
           <Link to={`/projects/${projectId}/story/tomes`} className="button button-secondary">
             {t("storyTomes")}
           </Link>
           <Link to={`/projects/${projectId}/story/scenes`} className="button button-secondary">
             {t("storyScenes")}
           </Link>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       <div className="story-layout">
         <Card>
           <div className="section-head">
@@ -315,6 +316,6 @@ export function StoryChaptersRoute() {
           )}
         </Card>
       </div>
-    </div>
+    </StoryWorkspaceFrame>
   );
 }

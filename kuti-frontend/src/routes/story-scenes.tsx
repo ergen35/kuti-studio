@@ -22,6 +22,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { StoryWorkspaceFrame } from "@/components/layout/story-workspace";
+import { queryKeys } from "@/lib/query-keys";
 import { useT } from "@/lib/i18n";
 import { generationSearch, normalizeJsonList, normalizeText, parseOrder, parseStatus, replaceSearchParams, slugHint } from "@/routes/story-shared";
 
@@ -70,7 +72,7 @@ export function StoryScenesRoute() {
   const searchTerm = searchParams.get("suggest") ?? "";
 
   const storyQuery = useQuery({
-    queryKey: ["story", projectId],
+    queryKey: queryKeys.story(projectId ?? ""),
     queryFn: () => getStory(projectId ?? ""),
     enabled: Boolean(projectId),
   });
@@ -155,21 +157,21 @@ export function StoryScenesRoute() {
   }, [searchParams, selectedChapter, selectedSceneId, setSearchParams, visibleScenes]);
 
   const sceneReferencesQuery = useQuery({
-    queryKey: ["story-references", projectId, selectedScene?.id],
+    queryKey: queryKeys.storyReferences(projectId ?? "", selectedScene?.id),
     queryFn: () => listStoryReferences(projectId ?? "", selectedScene?.id),
     enabled: Boolean(projectId && selectedScene?.id),
   });
 
   const suggestionsQuery = useQuery({
-    queryKey: ["story-suggestions", projectId, searchTerm],
+    queryKey: queryKeys.storySuggestions(projectId ?? "", searchTerm),
     queryFn: () => listStorySuggestions(projectId ?? "", searchTerm || undefined),
     enabled: Boolean(projectId),
   });
 
   const refreshStory = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["story", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["story-references", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["story-suggestions", projectId] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.story(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.storyReferences(projectId ?? "", undefined) });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.storySuggestions(projectId ?? "", searchTerm) });
   };
 
   const createMutation = useMutation({
@@ -249,31 +251,30 @@ export function StoryScenesRoute() {
     return <p className="muted">{t("missingProjectId")}</p>;
   }
 
-  return (
-    <div className="page-stack story-screen story-scenes">
-      <div className="hero story-hero">
-        <div>
-          <p className="eyebrow">{t("storyScenes")}</p>
-          <h3>{t("storyScenesIntro")}</h3>
-          <p className="muted max-width">Scenes are edited in a focused screen with references and generation links.</p>
-        </div>
-        <Card className="hero-card">
-          <span className="status-dot" />
-          <strong>{scenes.length} scenes</strong>
-          <p>{visibleScenes.length} scenes in the selected chapter.</p>
-        </Card>
-      </div>
+  const selectedChapterScenes = selectedChapter ? scenes.filter((scene) => scene.chapter_id === selectedChapter.id) : [];
 
-      <div className="story-toolbar">
-        <Link to={`/projects/${projectId}/story`} className="button button-secondary">
-          {t("backToStoryHub")}
-        </Link>
-        <div className="project-actions">
+  return (
+    <StoryWorkspaceFrame
+      eyebrow={t("storyScenes")}
+      title={t("storyScenesIntro")}
+      intro="Scenes are edited in a focused screen with references and generation links."
+      stats={[
+        { label: t("storyTomes"), value: tomes.length },
+        { label: t("storyChapters"), value: chapters.length },
+        { label: t("storyScenes"), value: scenes.length },
+        { label: "Selected chapter scenes", value: selectedChapterScenes.length },
+      ]}
+      backHref={`/projects/${projectId}/story`}
+      backLabel={t("backToStoryHub")}
+      asideTitle="Scene layer"
+      asideBody={<p>Keep the text, the references, and the generation entrypoint visible so the scene stays actionable.</p>}
+      actions={
+        <>
           <Link to={`/projects/${projectId}/story/tomes`} className="button button-secondary">{t("storyTomes")}</Link>
           <Link to={`/projects/${projectId}/story/chapters`} className="button button-secondary">{t("storyChapters")}</Link>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       <div className="story-layout">
         <Card>
           <div className="section-head">
@@ -363,8 +364,10 @@ export function StoryScenesRoute() {
             <Textarea name="content" rows={6} placeholder="Scene text with references like @character:jack-vespers" />
             <Textarea name="notes" rows={3} placeholder="Editorial notes" />
             <div className="form-grid-two">
-              <Textarea name="characters_json" rows={3} placeholder="Jack Vespers\nMira Sol" />
-              <Textarea name="tags_json" rows={3} placeholder="noir\nsetup" />
+              <Textarea name="characters_json" rows={3} placeholder="Jack Vespers
+Mira Sol" />
+              <Textarea name="tags_json" rows={3} placeholder="noir
+setup" />
             </div>
             <div className="form-grid-two">
               <Select name="status" defaultValue="active">
@@ -477,6 +480,6 @@ export function StoryScenesRoute() {
           )}
         </Card>
       </div>
-    </div>
+    </StoryWorkspaceFrame>
   );
 }

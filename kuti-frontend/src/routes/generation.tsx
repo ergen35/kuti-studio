@@ -27,6 +27,7 @@ import {
   type GenerationPanelStatus,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { queryKeys } from "@/lib/query-keys";
 import { useT } from "@/lib/i18n";
 
 type SourceOption = {
@@ -143,31 +144,31 @@ export function GenerationRoute() {
   const [selectedModelKey, setSelectedModelKey] = useState<string>("");
 
   const jobsQuery = useQuery({
-    queryKey: ["generation-jobs", projectId],
+    queryKey: queryKeys.generationJobs(projectId ?? ""),
     queryFn: () => listGenerationJobs(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
   const boardsQuery = useQuery({
-    queryKey: ["generation-boards", projectId],
+    queryKey: queryKeys.generationBoards(projectId ?? ""),
     queryFn: () => listGenerationBoards(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
   const storyQuery = useQuery({
-    queryKey: ["generation-story", projectId],
+    queryKey: queryKeys.generationStory(projectId ?? ""),
     queryFn: () => getStory(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
   const versionsQuery = useQuery({
-    queryKey: ["generation-versions", projectId],
+    queryKey: queryKeys.generationVersions(projectId ?? ""),
     queryFn: () => listVersions(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
   const modelsQuery = useQuery({
-    queryKey: ["generation-models"],
+    queryKey: queryKeys.generationModels,
     queryFn: listModels,
   });
 
@@ -208,7 +209,7 @@ export function GenerationRoute() {
   }, [jobs, selectedJobId]);
 
   const selectedJobQuery = useQuery({
-    queryKey: ["generation-job", projectId, selectedJob?.id],
+    queryKey: queryKeys.generationJob(projectId ?? "", selectedJob?.id),
     queryFn: () => getGenerationJob(projectId ?? "", selectedJob?.id ?? ""),
     enabled: Boolean(projectId && selectedJob?.id),
   });
@@ -295,9 +296,9 @@ export function GenerationRoute() {
   }, [selectedSelectionIds.length, sourceKind]);
 
   const refreshGeneration = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["generation-jobs", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["generation-boards", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["generation-job", projectId, selectedJob?.id] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.generationJobs(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.generationBoards(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.generationJob(projectId ?? "", selectedJob?.id) });
   };
 
   const createMutation = useMutation({

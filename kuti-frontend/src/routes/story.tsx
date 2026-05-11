@@ -28,6 +28,7 @@ import {
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
 import { useT } from "@/lib/i18n";
+import { queryKeys } from "@/lib/query-keys";
 
 type StoryFormResult = {
   title: string;
@@ -165,13 +166,13 @@ export function StoryRoute() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const storyQuery = useQuery({
-    queryKey: ["story", projectId],
+    queryKey: queryKeys.story(projectId ?? ""),
     queryFn: () => getStory(projectId ?? ""),
     enabled: Boolean(projectId),
   });
 
   const suggestionQuery = useQuery({
-    queryKey: ["story-suggestions", projectId, searchParams.get("suggest")],
+    queryKey: queryKeys.storySuggestions(projectId ?? "", searchParams.get("suggest") ?? ""),
     queryFn: () => listStorySuggestions(projectId ?? "", searchParams.get("suggest") ?? undefined),
     enabled: Boolean(projectId),
   });
@@ -254,8 +255,8 @@ export function StoryRoute() {
   }, [selectedChapter?.id, selectedSceneId, visibleScenes]);
 
   const invalidateStory = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["story", projectId] });
-    await queryClient.invalidateQueries({ queryKey: ["story-suggestions", projectId] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.story(projectId ?? "") });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.storySuggestions(projectId ?? "", searchParams.get("suggest") ?? "") });
   };
 
   const tomeCreateMutation = useMutation({
@@ -337,7 +338,7 @@ export function StoryRoute() {
   });
 
   const sceneReferencesQuery = useQuery({
-    queryKey: ["story-references", projectId, selectedScene?.id],
+    queryKey: queryKeys.storyReferences(projectId ?? "", selectedScene?.id),
     queryFn: () => listStoryReferences(projectId ?? "", selectedScene?.id),
     enabled: Boolean(projectId && selectedScene?.id),
   });
