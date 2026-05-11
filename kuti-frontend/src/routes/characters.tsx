@@ -22,6 +22,9 @@ import {
   type VoiceSampleRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { queryKeys } from "@/lib/query-keys";
 
 function splitLines(value: string) {
@@ -377,7 +380,7 @@ export function CharactersRoute() {
               event.preventDefault();
             }}
           >
-            <input
+            <Input
               name="search"
               placeholder="Search characters"
               value={searchTerm}
@@ -389,7 +392,7 @@ export function CharactersRoute() {
                 });
               }}
             />
-            <select
+            <Select
               name="status"
               value={statusFilter}
               onChange={(event) => {
@@ -404,8 +407,8 @@ export function CharactersRoute() {
               <option value="active">Active</option>
               <option value="draft">Draft</option>
               <option value="archived">Archived</option>
-            </select>
-            <select
+            </Select>
+            <Select
               name="sort"
               value={sortOrder}
               onChange={(event) => {
@@ -419,7 +422,7 @@ export function CharactersRoute() {
               <option value="updated-desc">Recently updated</option>
               <option value="name-asc">Name A-Z</option>
               <option value="status-asc">Status</option>
-            </select>
+            </Select>
             <button
               className="button button-ghost"
               type="button"
@@ -467,51 +470,51 @@ export function CharactersRoute() {
             </div>
             <label>
               Name
-              <input name="name" placeholder="Mara Vale" required />
+              <Input name="name" placeholder="Mara Vale" required />
             </label>
             <label>
               Alias
-              <input name="alias" placeholder="The Ash Rider" />
+              <Input name="alias" placeholder="The Ash Rider" />
             </label>
             <label>
               Narrative role
-              <input name="narrative_role" placeholder="antagonist" />
+              <Input name="narrative_role" placeholder="antagonist" />
             </label>
             <label>
               Description
-              <textarea name="description" rows={3} placeholder="Short character overview" />
+              <Textarea name="description" rows={3} placeholder="Short character overview" />
             </label>
             <label>
               Physical description
-              <textarea name="physical_description" rows={3} placeholder="Visual silhouette and features" />
+              <Textarea name="physical_description" rows={3} placeholder="Visual silhouette and features" />
             </label>
             <div className="form-grid-two">
               <label>
                 Color palette
-                <textarea name="color_palette_json" rows={3} placeholder="#121212&#10;#c28d52" />
+                <Textarea name="color_palette_json" rows={3} placeholder="#121212&#10;#c28d52" />
               </label>
               <label>
                 Costume elements
-                <textarea name="costume_elements_json" rows={3} placeholder="long coat&#10;wide collar" />
+                <Textarea name="costume_elements_json" rows={3} placeholder="long coat&#10;wide collar" />
               </label>
             </div>
             <div className="form-grid-two">
               <label>
                 Key traits
-                <textarea name="key_traits_json" rows={3} placeholder="steady&#10;sharp-eyed" />
+                <Textarea name="key_traits_json" rows={3} placeholder="steady&#10;sharp-eyed" />
               </label>
               <label>
                 Tags
-                <textarea name="tags_json" rows={3} placeholder="noir&#10;lead" />
+                <Textarea name="tags_json" rows={3} placeholder="noir&#10;lead" />
               </label>
             </div>
             <label>
               Personality
-              <textarea name="personality" rows={3} placeholder="How they speak and react" />
+              <Textarea name="personality" rows={3} placeholder="How they speak and react" />
             </label>
             <label>
               Narrative arc
-              <textarea name="narrative_arc" rows={3} placeholder="Where they begin and where they go" />
+              <Textarea name="narrative_arc" rows={3} placeholder="Where they begin and where they go" />
             </label>
             <button className="button button-primary" type="submit">
               Create character
@@ -548,30 +551,30 @@ export function CharactersRoute() {
                 <div className="form-grid-two">
                   <label>
                     Name
-                    <input name="name" defaultValue={selectedCharacterData.name} />
+                    <Input name="name" defaultValue={selectedCharacterData.name} />
                   </label>
                   <label>
                     Alias
-                    <input name="alias" defaultValue={selectedCharacterData.alias ?? ""} />
+                    <Input name="alias" defaultValue={selectedCharacterData.alias ?? ""} />
                   </label>
                 </div>
                 <div className="form-grid-two">
                   <label>
                     Narrative role
-                    <input name="narrative_role" defaultValue={selectedCharacterData.narrative_role ?? ""} />
+                    <Input name="narrative_role" defaultValue={selectedCharacterData.narrative_role ?? ""} />
                   </label>
                   <label>
                     Status
-                    <input name="status" defaultValue={selectedCharacterData.status} />
+                    <Input name="status" defaultValue={selectedCharacterData.status} />
                   </label>
                 </div>
                 <label>
                   Description
-                  <textarea name="description" rows={4} defaultValue={selectedCharacterData.description} />
+                  <Textarea name="description" rows={4} defaultValue={selectedCharacterData.description} />
                 </label>
                 <label>
                   Physical description
-                  <textarea
+                  <Textarea
                     name="physical_description"
                     rows={4}
                     defaultValue={selectedCharacterData.physical_description}
@@ -580,7 +583,7 @@ export function CharactersRoute() {
                 <div className="form-grid-two">
                   <label>
                     Color palette
-                    <textarea
+                    <Textarea
                       name="color_palette_json"
                       rows={4}
                       defaultValue={joinLines(selectedCharacterData.color_palette_json)}
@@ -588,7 +591,7 @@ export function CharactersRoute() {
                   </label>
                   <label>
                     Costume elements
-                    <textarea
+                    <Textarea
                       name="costume_elements_json"
                       rows={4}
                       defaultValue={joinLines(selectedCharacterData.costume_elements_json)}
@@ -598,7 +601,7 @@ export function CharactersRoute() {
                 <div className="form-grid-two">
                   <label>
                     Key traits
-                    <textarea
+                    <Textarea
                       name="key_traits_json"
                       rows={4}
                       defaultValue={joinLines(selectedCharacterData.key_traits_json)}
@@ -606,16 +609,16 @@ export function CharactersRoute() {
                   </label>
                   <label>
                     Tags
-                    <textarea name="tags_json" rows={4} defaultValue={joinLines(selectedCharacterData.tags_json)} />
+                    <Textarea name="tags_json" rows={4} defaultValue={joinLines(selectedCharacterData.tags_json)} />
                   </label>
                 </div>
                 <label>
                   Personality
-                  <textarea name="personality" rows={4} defaultValue={selectedCharacterData.personality} />
+                  <Textarea name="personality" rows={4} defaultValue={selectedCharacterData.personality} />
                 </label>
                 <label>
                   Narrative arc
-                  <textarea name="narrative_arc" rows={4} defaultValue={selectedCharacterData.narrative_arc} />
+                  <Textarea name="narrative_arc" rows={4} defaultValue={selectedCharacterData.narrative_arc} />
                 </label>
                 <button className="button button-primary" type="submit">
                   Save character
@@ -653,7 +656,7 @@ export function CharactersRoute() {
                   <form className="form-grid relation-form" onSubmit={handleRelationCreate}>
                     <label>
                       Target character
-                      <select name="target_character_id" defaultValue="" required>
+                      <Select name="target_character_id" defaultValue="" required>
                         <option value="" disabled>
                           Choose a character
                         </option>
@@ -662,23 +665,23 @@ export function CharactersRoute() {
                             {character.name}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </label>
                     <label>
                       Relation type
-                      <input name="relation_type" placeholder="rival" required />
+                      <Input name="relation_type" placeholder="rival" required />
                     </label>
                     <label>
                       Strength
-                      <input name="strength" type="number" min={0} max={100} defaultValue={50} />
+                      <Input name="strength" type="number" min={0} max={100} defaultValue={50} />
                     </label>
                     <label>
                       Narrative dependency
-                      <textarea name="narrative_dependency" rows={3} placeholder="How the relation affects the plot" />
+                      <Textarea name="narrative_dependency" rows={3} placeholder="How the relation affects the plot" />
                     </label>
                     <label>
                       Notes
-                      <textarea name="notes" rows={3} placeholder="Scene details or reminders" />
+                      <Textarea name="notes" rows={3} placeholder="Scene details or reminders" />
                     </label>
                     <button className="button" type="submit">
                       Add relation
@@ -707,15 +710,15 @@ export function CharactersRoute() {
                   <form className="form-grid voice-form" onSubmit={handleVoiceCreate}>
                     <label>
                       Label
-                      <input name="label" placeholder="calm low register" required />
+                      <Input name="label" placeholder="calm low register" required />
                     </label>
                     <label>
                       Asset path
-                      <input name="asset_path" placeholder="assets/audio/jack-01.wav" />
+                      <Input name="asset_path" placeholder="assets/audio/jack-01.wav" />
                     </label>
                     <label>
                       Voice notes
-                      <textarea name="voice_notes" rows={4} placeholder="Breathy pacing with a dry edge." />
+                      <Textarea name="voice_notes" rows={4} placeholder="Breathy pacing with a dry edge." />
                     </label>
                     <button className="button" type="submit">
                       Add sample

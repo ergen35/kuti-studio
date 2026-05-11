@@ -15,6 +15,8 @@ import {
   type WarningStatus,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { queryKeys } from "@/lib/query-keys";
 
 const kindLabels: Record<WarningKind, string> = {
@@ -234,7 +236,7 @@ export function WarningsRoute() {
         </div>
 
         <form className="filters-row" onSubmit={(event) => event.preventDefault()}>
-          <select
+          <Select
             name="status"
             value={statusFilter}
             onChange={(event) =>
@@ -249,8 +251,8 @@ export function WarningsRoute() {
             <option value="all">All statuses</option>
             <option value="ignored">Ignored</option>
             <option value="resolved">Resolved</option>
-          </select>
-          <select
+          </Select>
+          <Select
             name="severity"
             value={severityFilter}
             onChange={(event) =>
@@ -265,8 +267,8 @@ export function WarningsRoute() {
             <option value="info">Info</option>
             <option value="warning">Warning</option>
             <option value="critical">Critical</option>
-          </select>
-          <select
+          </Select>
+          <Select
             name="kind"
             value={kindFilter}
             onChange={(event) =>
@@ -282,7 +284,7 @@ export function WarningsRoute() {
             <option value="invalid_location">Invalid location</option>
             <option value="timeline_incoherence">Timeline conflict</option>
             <option value="orphan_reference">Orphan reference</option>
-          </select>
+          </Select>
         </form>
       </div>
 
@@ -417,7 +419,7 @@ export function WarningsRoute() {
                 </div>
                 <label>
                   Note
-                  <textarea value={noteDraft} onChange={(event) => setNoteDraft(event.currentTarget.value)} rows={4} placeholder="Why this warning was resolved or ignored" />
+                  <Textarea value={noteDraft} onChange={(event) => setNoteDraft(event.currentTarget.value)} rows={4} placeholder="Why this warning was resolved or ignored" />
                 </label>
                 <div className="project-actions warning-actions">
                   <button className="button button-primary" type="button" onClick={() => handleStatusChange("resolved")}>

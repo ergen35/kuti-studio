@@ -15,6 +15,8 @@ import {
   type VersionRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { queryKeys } from "@/lib/query-keys";
 
 function normalizeText(value: FormDataEntryValue | null) {
@@ -240,16 +242,16 @@ export function VersionsRoute() {
             <div className="form-grid-two">
               <label>
                 Branch
-                <input name="branch_name" placeholder="main" defaultValue="main" />
+                <Input name="branch_name" placeholder="main" defaultValue="main" />
               </label>
               <label>
                 Label
-                <input name="label" placeholder="Checkpoint" />
+                <Input name="label" placeholder="Checkpoint" />
               </label>
             </div>
             <label>
               Summary
-              <textarea name="summary" rows={3} placeholder="What changed in this snapshot" />
+              <Textarea name="summary" rows={3} placeholder="What changed in this snapshot" />
             </label>
             <button className="button button-primary" type="submit">
               Create version
@@ -317,11 +319,11 @@ export function VersionsRoute() {
                 <div className="form-grid-two">
                   <label>
                     Restore label
-                    <input value={restoreLabel} onChange={(event) => setRestoreLabel(event.currentTarget.value)} />
+                    <Input value={restoreLabel} onChange={(event) => setRestoreLabel(event.currentTarget.value)} />
                   </label>
                   <label>
                     Restore summary
-                    <input value={restoreSummary} onChange={(event) => setRestoreSummary(event.currentTarget.value)} />
+                    <Input value={restoreSummary} onChange={(event) => setRestoreSummary(event.currentTarget.value)} />
                   </label>
                 </div>
                 <button className="button button-primary" type="submit">

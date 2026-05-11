@@ -17,6 +17,9 @@ import {
   type ExportStatus,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { queryKeys } from "@/lib/query-keys";
 
 const kindLabels: Record<ExportKind, string> = {
@@ -214,7 +217,7 @@ export function ExportsRoute() {
 
       <div className="story-toolbar">
         <div className="project-actions export-filters">
-          <select
+          <Select
             value={kindFilter}
             onChange={(event) =>
               replaceSearchParams(searchParams, (params) => {
@@ -227,8 +230,8 @@ export function ExportsRoute() {
             <option value="all">All kinds</option>
             <option value="work">Work</option>
             <option value="publication">Publication</option>
-          </select>
-          <select
+          </Select>
+          <Select
             value={formatFilter}
             onChange={(event) =>
               replaceSearchParams(searchParams, (params) => {
@@ -242,8 +245,8 @@ export function ExportsRoute() {
             <option value="json">JSON</option>
             <option value="tree">Tree</option>
             <option value="zip">ZIP</option>
-          </select>
-          <select
+          </Select>
+          <Select
             value={statusFilter}
             onChange={(event) =>
               replaceSearchParams(searchParams, (params) => {
@@ -257,7 +260,7 @@ export function ExportsRoute() {
             <option value="ready">Ready</option>
             <option value="pending">Pending</option>
             <option value="failed">Failed</option>
-          </select>
+          </Select>
         </div>
         <button
           className="button button-ghost"
@@ -315,29 +318,29 @@ export function ExportsRoute() {
             <div className="form-grid-two">
               <label>
                 Kind
-                <select name="kind" defaultValue="work">
+                <Select name="kind" defaultValue="work">
                   <option value="work">Work export</option>
                   <option value="publication">Publication export</option>
-                </select>
+                </Select>
               </label>
               <label>
                 Format
-                <select value={selectedFormat} onChange={(event) => setSelectedFormat(event.currentTarget.value as ExportFormat)}>
+                <Select value={selectedFormat} onChange={(event) => setSelectedFormat(event.currentTarget.value as ExportFormat)}>
                   <option value="json">JSON</option>
                   <option value="tree">Tree</option>
                   <option value="zip">ZIP</option>
-                </select>
+                </Select>
               </label>
             </div>
 
             <label>
               Label
-              <input name="label" placeholder="Publication bundle" />
+              <Input name="label" placeholder="Publication bundle" />
             </label>
 
             <label>
               Summary
-              <textarea name="summary" rows={3} placeholder="What this export is for" />
+              <Textarea name="summary" rows={3} placeholder="What this export is for" />
             </label>
 
             <button className="button button-primary" type="submit" disabled={createMutation.isPending}>

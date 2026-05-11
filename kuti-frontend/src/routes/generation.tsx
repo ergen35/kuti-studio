@@ -27,6 +27,9 @@ import {
   type GenerationPanelStatus,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { queryKeys } from "@/lib/query-keys";
 import { useT } from "@/lib/i18n";
 
@@ -440,27 +443,27 @@ export function GenerationRoute() {
             <div className="form-grid-two">
               <label>
                 Strategy
-                <select value={strategy} onChange={(event) => setStrategy(event.currentTarget.value as GenerationStrategy)}>
+                <Select value={strategy} onChange={(event) => setStrategy(event.currentTarget.value as GenerationStrategy)}>
                   <option value="direct">Direct board</option>
                   <option value="intermediate">Intermediate board</option>
-                </select>
+                </Select>
               </label>
               <label>
                 Source version
-                <select value={selectedVersionId} onChange={(event) => setSelectedVersionId(event.currentTarget.value)}>
+                <Select value={selectedVersionId} onChange={(event) => setSelectedVersionId(event.currentTarget.value)}>
                   <option value="">Current project state</option>
                   {versionsQuery.data?.map((version) => (
                     <option key={version.id} value={version.id}>
                       {version.branch_name} #{version.version_index} · {version.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
 
             <label>
               Model
-              <select value={selectedModelKey} onChange={(event) => setSelectedModelKey(event.currentTarget.value)}>
+              <Select value={selectedModelKey} onChange={(event) => setSelectedModelKey(event.currentTarget.value)}>
                 {availableModels.length ? (
                   availableModels.map((model: ModelProviderRead) => (
                     <option key={model.key} value={model.key} disabled={!model.enabled || !model.configured}>
@@ -470,7 +473,7 @@ export function GenerationRoute() {
                 ) : (
                   <option value="">No compatible models available</option>
                 )}
-              </select>
+              </Select>
             </label>
 
             <div className="generation-model-grid">
@@ -498,12 +501,12 @@ export function GenerationRoute() {
 
               <label>
                 Title
-                <input name="title" placeholder="Chapter 4 board" />
+                <Input name="title" placeholder="Chapter 4 board" />
               </label>
 
             <label>
               Summary
-              <textarea name="summary" rows={3} placeholder="Why this board is being generated" />
+              <Textarea name="summary" rows={3} placeholder="Why this board is being generated" />
             </label>
 
             <button className="button button-primary" type="submit" disabled={createMutation.isPending || !selectedSourceId || !configuredModels.length}>
@@ -664,21 +667,21 @@ export function GenerationRoute() {
                       <div className="form-grid-two">
                         <label>
                           Title
-                          <input name="title" defaultValue={selectedPanel.title} />
+                          <Input name="title" defaultValue={selectedPanel.title} />
                         </label>
                         <label>
                           Status
-                          <select name="status" defaultValue={selectedPanel.status}>
+                          <Select name="status" defaultValue={selectedPanel.status}>
                             <option value="draft">Draft</option>
                             <option value="selected">Selected</option>
                             <option value="rejected">Rejected</option>
                             <option value="replaced">Replaced</option>
-                          </select>
+                          </Select>
                         </label>
                       </div>
                       <label>
                         Caption
-                        <textarea name="caption" rows={4} defaultValue={selectedPanel.caption} />
+                        <Textarea name="caption" rows={4} defaultValue={selectedPanel.caption} />
                       </label>
                       <div className="project-actions">
                         <button className="button button-secondary" type="button" onClick={handlePanelFollowUp} disabled={createMutation.isPending || !configuredModels.length}>

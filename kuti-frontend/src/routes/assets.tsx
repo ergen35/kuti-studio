@@ -22,6 +22,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { queryKeys } from "@/lib/query-keys";
 import { useT } from "@/lib/i18n";
 
@@ -307,30 +310,30 @@ export function AssetsRoute() {
             </div>
             <label>
               Source path
-              <input name="source_path" placeholder="/home/user/Desktop/reference.png" required />
+              <Input name="source_path" placeholder="/home/user/Desktop/reference.png" required />
             </label>
             <div className="form-grid-two">
               <label>
                 Name
-                <input name="name" placeholder="Reference plate" />
+                <Input name="name" placeholder="Reference plate" />
               </label>
               <label>
                 Slug
-                <input name="slug" placeholder="reference-plate" />
+                <Input name="slug" placeholder="reference-plate" />
               </label>
             </div>
             <label>
               Description
-              <textarea name="description" rows={3} placeholder="Why this file matters" />
+              <Textarea name="description" rows={3} placeholder="Why this file matters" />
             </label>
             <div className="form-grid-two">
               <label>
                 MIME type
-                <input name="mime_type" placeholder="image/png" />
+                <Input name="mime_type" placeholder="image/png" />
               </label>
               <label>
                 Tags
-                <textarea name="tags_json" rows={3} placeholder="reference\ncover\nscan" />
+                <Textarea name="tags_json" rows={3} placeholder="reference\ncover\nscan" />
               </label>
             </div>
               <button className="button button-primary" type="submit">
@@ -384,20 +387,20 @@ export function AssetsRoute() {
                 <div className="form-grid-two">
                   <label>
                     Name
-                    <input name="name" defaultValue={detail.name} />
+                    <Input name="name" defaultValue={detail.name} />
                   </label>
                   <label>
                     Slug
-                    <input name="slug" defaultValue={detail.slug} />
+                    <Input name="slug" defaultValue={detail.slug} />
                   </label>
                 </div>
                 <label>
                   Description
-                  <textarea name="description" rows={4} defaultValue={detail.description} />
+                  <Textarea name="description" rows={4} defaultValue={detail.description} />
                 </label>
                 <label>
                   Tags
-                  <textarea name="tags_json" rows={3} defaultValue={detail.tags_json.join("\n")} />
+                  <Textarea name="tags_json" rows={3} defaultValue={detail.tags_json.join("\n")} />
                 </label>
                 <button className="button button-primary" type="submit">
                   Save metadata
@@ -438,7 +441,7 @@ export function AssetsRoute() {
                     <div className="form-grid-two">
                       <label>
                         Target kind
-                        <select
+                        <Select
                           name="target_kind"
                           value={targetKind}
                           onChange={(event) => setTargetKind(event.currentTarget.value as typeof targetKind)}
@@ -447,11 +450,11 @@ export function AssetsRoute() {
                           <option value="tome">Tome</option>
                           <option value="chapter">Chapter</option>
                           <option value="scene">Scene</option>
-                        </select>
+                        </Select>
                       </label>
                       <label>
                         Target entity
-                        <select name="target_id" value={targetId} onChange={(event) => setTargetId(event.currentTarget.value)} required>
+                        <Select name="target_id" value={targetId} onChange={(event) => setTargetId(event.currentTarget.value)} required>
                           <option value="" disabled>
                             Choose {targetKind}
                           </option>
@@ -466,12 +469,12 @@ export function AssetsRoute() {
                               No {targetKind}s available
                             </option>
                           )}
-                        </select>
+                        </Select>
                       </label>
                     </div>
                     <label>
                       Note
-                      <textarea name="note" rows={3} placeholder="Why this asset is linked" />
+                      <Textarea name="note" rows={3} placeholder="Why this asset is linked" />
                     </label>
                     <button className="button" type="submit">
                       Add usage link

@@ -27,6 +27,9 @@ import {
   type TomeRead,
 } from "@/api/client";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { useT } from "@/lib/i18n";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -482,7 +485,7 @@ export function StoryRoute() {
       <div className="story-toolbar">
         <Link to={`/projects/${projectId}`} className="button button-secondary">{t("backToDashboard")}</Link>
         <form className="inline-form story-search" onSubmit={(event) => event.preventDefault()}>
-          <input
+          <Input
             name="suggest"
             placeholder="Find references or entities"
             value={searchTerm}
@@ -525,18 +528,18 @@ export function StoryRoute() {
 
           <form className="form-grid" onSubmit={handleTomeCreate}>
             <div className="form-head"><p className="eyebrow">Create tome</p><h4>New volume</h4></div>
-            <label>Name<input name="title" placeholder="Volume One" required /></label>
-            <label>Slug<input name="slug" placeholder={slugHint("Volume One")} /></label>
-            <label>Synopsis<textarea name="synopsis" rows={3} placeholder="High-level story arc" /></label>
+            <label>Name<Input name="title" placeholder="Volume One" required /></label>
+            <label>Slug<Input name="slug" placeholder={slugHint("Volume One")} /></label>
+            <label>Synopsis<Textarea name="synopsis" rows={3} placeholder="High-level story arc" /></label>
             <div className="form-grid-two">
               <label>Status
-                <select name="status" defaultValue="active">
+                <Select name="status" defaultValue="active">
                   <option value="active">Active</option>
                   <option value="draft">Draft</option>
                   <option value="archived">Archived</option>
-                </select>
+                </Select>
               </label>
-              <label>Order<input name="order_index" type="number" defaultValue={0} /></label>
+              <label>Order<Input name="order_index" type="number" defaultValue={0} /></label>
             </div>
             <button className="button button-primary" type="submit">Create tome</button>
           </form>
@@ -576,18 +579,18 @@ export function StoryRoute() {
 
               <form className="form-grid compact-form" onSubmit={handleChapterCreate}>
                 <div className="form-head"><p className="eyebrow">Create chapter</p><h4>New chapter</h4></div>
-                <label>Title<input name="title" placeholder="Chapter One" required /></label>
-                <label>Slug<input name="slug" placeholder={slugHint("Chapter One")} /></label>
-                <label>Synopsis<textarea name="synopsis" rows={3} placeholder="Chapter summary" /></label>
+                <label>Title<Input name="title" placeholder="Chapter One" required /></label>
+                <label>Slug<Input name="slug" placeholder={slugHint("Chapter One")} /></label>
+                <label>Synopsis<Textarea name="synopsis" rows={3} placeholder="Chapter summary" /></label>
                 <div className="form-grid-two">
                   <label>Status
-                    <select name="status" defaultValue="active">
+                    <Select name="status" defaultValue="active">
                       <option value="active">Active</option>
                       <option value="draft">Draft</option>
                       <option value="archived">Archived</option>
-                    </select>
+                    </Select>
                   </label>
-                  <label>Order<input name="order_index" type="number" defaultValue={0} /></label>
+                  <label>Order<Input name="order_index" type="number" defaultValue={0} /></label>
                 </div>
                 <button className="button" type="submit">Create chapter</button>
               </form>
@@ -600,28 +603,28 @@ export function StoryRoute() {
 
               <form className="form-grid compact-form" onSubmit={handleSceneCreate}>
                 <div className="form-head"><p className="eyebrow">Create scene</p><h4>New scene</h4></div>
-                <label>Title<input name="title" placeholder="The dockside reveal" required /></label>
-                <label>Slug<input name="slug" placeholder={slugHint("The dockside reveal")} /></label>
+                <label>Title<Input name="title" placeholder="The dockside reveal" required /></label>
+                <label>Slug<Input name="slug" placeholder={slugHint("The dockside reveal")} /></label>
                 <div className="form-grid-two">
-                  <label>Type<input name="scene_type" placeholder="opening" /></label>
-                  <label>Location<input name="location" placeholder="Harbor street" /></label>
+                  <label>Type<Input name="scene_type" placeholder="opening" /></label>
+                  <label>Location<Input name="location" placeholder="Harbor street" /></label>
                 </div>
-                <label>Summary<textarea name="summary" rows={2} placeholder="What happens here" /></label>
-                <label>Content<textarea name="content" rows={6} placeholder="Scene text with references like @character:jack-vespers" /></label>
-                <label>Notes<textarea name="notes" rows={2} placeholder="Editorial notes" /></label>
+                <label>Summary<Textarea name="summary" rows={2} placeholder="What happens here" /></label>
+                <label>Content<Textarea name="content" rows={6} placeholder="Scene text with references like @character:jack-vespers" /></label>
+                <label>Notes<Textarea name="notes" rows={2} placeholder="Editorial notes" /></label>
                 <div className="form-grid-two">
-                  <label>Characters<textarea name="characters_json" rows={3} placeholder="Jack Vespers&#10;Mira Sol" /></label>
-                  <label>Tags<textarea name="tags_json" rows={3} placeholder="noir&#10;setup" /></label>
+                  <label>Characters<Textarea name="characters_json" rows={3} placeholder="Jack Vespers&#10;Mira Sol" /></label>
+                  <label>Tags<Textarea name="tags_json" rows={3} placeholder="noir&#10;setup" /></label>
                 </div>
                 <div className="form-grid-two">
                   <label>Status
-                    <select name="status" defaultValue="active">
+                    <Select name="status" defaultValue="active">
                       <option value="active">Active</option>
                       <option value="draft">Draft</option>
                       <option value="archived">Archived</option>
-                    </select>
+                    </Select>
                   </label>
-                  <label>Order<input name="order_index" type="number" defaultValue={0} /></label>
+                  <label>Order<Input name="order_index" type="number" defaultValue={0} /></label>
                 </div>
                 <button className="button button-primary" type="submit">Create scene</button>
               </form>
@@ -656,29 +659,29 @@ export function StoryRoute() {
 
               <form key={selectedScene.id} className="form-grid" onSubmit={(event) => handleSceneUpdate(event, selectedScene)}>
                 <div className="form-grid-two">
-                  <label>Title<input name="title" defaultValue={selectedScene.title} /></label>
-                  <label>Slug<input name="slug" defaultValue={selectedScene.slug} /></label>
+                  <label>Title<Input name="title" defaultValue={selectedScene.title} /></label>
+                  <label>Slug<Input name="slug" defaultValue={selectedScene.slug} /></label>
                 </div>
                 <div className="form-grid-two">
-                  <label>Type<input name="scene_type" defaultValue={selectedScene.scene_type} /></label>
-                  <label>Location<input name="location" defaultValue={selectedScene.location} /></label>
+                  <label>Type<Input name="scene_type" defaultValue={selectedScene.scene_type} /></label>
+                  <label>Location<Input name="location" defaultValue={selectedScene.location} /></label>
                 </div>
-                <label>Summary<textarea name="summary" rows={3} defaultValue={selectedScene.summary} /></label>
-                <label>Content<textarea name="content" rows={8} defaultValue={selectedScene.content} /></label>
-                <label>Notes<textarea name="notes" rows={3} defaultValue={selectedScene.notes} /></label>
+                <label>Summary<Textarea name="summary" rows={3} defaultValue={selectedScene.summary} /></label>
+                <label>Content<Textarea name="content" rows={8} defaultValue={selectedScene.content} /></label>
+                <label>Notes<Textarea name="notes" rows={3} defaultValue={selectedScene.notes} /></label>
                 <div className="form-grid-two">
-                  <label>Characters<textarea name="characters_json" rows={3} defaultValue={selectedScene.characters_json.join("\n")} /></label>
-                  <label>Tags<textarea name="tags_json" rows={3} defaultValue={selectedScene.tags_json.join("\n")} /></label>
+                  <label>Characters<Textarea name="characters_json" rows={3} defaultValue={selectedScene.characters_json.join("\n")} /></label>
+                  <label>Tags<Textarea name="tags_json" rows={3} defaultValue={selectedScene.tags_json.join("\n")} /></label>
                 </div>
                 <div className="form-grid-two">
                   <label>Status
-                    <select name="status" defaultValue={selectedScene.status}>
+                    <Select name="status" defaultValue={selectedScene.status}>
                       <option value="active">Active</option>
                       <option value="draft">Draft</option>
                       <option value="archived">Archived</option>
-                    </select>
+                    </Select>
                   </label>
-                  <label>Order<input name="order_index" type="number" defaultValue={selectedScene.order_index} /></label>
+                  <label>Order<Input name="order_index" type="number" defaultValue={selectedScene.order_index} /></label>
                 </div>
                 <button className="button button-primary" type="submit">Save scene</button>
               </form>
