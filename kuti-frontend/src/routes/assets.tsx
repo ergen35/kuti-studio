@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   archiveAsset,
+  assetFileUrl,
   createAssetLink,
   deleteAsset,
   deleteAssetLink,
@@ -346,6 +347,14 @@ export function AssetsRoute() {
                   <h4>{detail.name}</h4>
                 </div>
                 <div className="project-actions">
+                  <a
+                    className="button button-secondary"
+                    href={assetFileUrl(projectId, detail.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open file
+                  </a>
                   <button className="button button-ghost" type="button" onClick={() => archiveMutation.mutate()}>
                     Archive
                   </button>

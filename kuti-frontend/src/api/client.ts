@@ -843,6 +843,10 @@ export function getAsset(projectId: string, assetId: string) {
   return request<AssetDetail>(`/api/projects/${projectId}/assets/${assetId}`);
 }
 
+export function assetFileUrl(projectId: string, assetId: string) {
+  return `${apiBaseUrl}/api/projects/${projectId}/assets/${assetId}/file`;
+}
+
 export function importAsset(projectId: string, payload: AssetImportInput) {
   return requestJson<AssetRead>(`/api/projects/${projectId}/assets/import`, {
     method: "POST",
