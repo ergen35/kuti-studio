@@ -68,53 +68,31 @@ export function AppShell() {
           <div className="nav-section">
             <p className="nav-label">Index</p>
             <div className="nav-grid">
-              <WorkspaceLink to="/" end>
-                {t("projectHub")}
-              </WorkspaceLink>
+              <WorkspaceLink to="/" end>{t("projectHub")}</WorkspaceLink>
             </div>
           </div>
 
           {projectId ? (
-            <>
-              <div className="nav-section">
-                <p className="nav-label">Project</p>
-                <div className="nav-grid">
-                  <WorkspaceLink to={`/projects/${projectId}`} end>
-                    {t("projectDashboard")}
-                  </WorkspaceLink>
-                  <WorkspaceLink to={`/projects/${projectId}/story`}>
-                    {t("storyline")}
-                  </WorkspaceLink>
-                  <WorkspaceLink to={`/projects/${projectId}/characters`}>
-                    Characters
-                  </WorkspaceLink>
-                  <WorkspaceLink to={`/projects/${projectId}/assets`}>
-                    {t("assetsLibrary")}
-                  </WorkspaceLink>
-                  <WorkspaceLink to={`/projects/${projectId}/generation`}>
-                    {t("generationStudio")}
-                  </WorkspaceLink>
-                  <WorkspaceLink to={`/projects/${projectId}/exports`}>
-                    {t("exports")}
-                  </WorkspaceLink>
-                  <WorkspaceLink to={`/projects/${projectId}/versions`}>
-                    {t("versioning")}
-                  </WorkspaceLink>
-                  <WorkspaceLink to={`/projects/${projectId}/warnings`}>
-                    {t("warnings")}
-                  </WorkspaceLink>
-                  <WorkspaceLink to={`/projects/${projectId}/settings`}>
-                    {t("settings")}
-                  </WorkspaceLink>
-                </div>
+            <div className="nav-section">
+              <p className="nav-label">Project</p>
+              <div className="nav-grid nav-grid-project">
+                <WorkspaceLink to={`/projects/${projectId}`} end>{t("projectDashboard")}</WorkspaceLink>
+                <WorkspaceLink to={`/projects/${projectId}/story`}>{t("storyline")}</WorkspaceLink>
+                <WorkspaceLink to={`/projects/${projectId}/characters`}>Characters</WorkspaceLink>
+                <WorkspaceLink to={`/projects/${projectId}/assets`}>{t("assetsLibrary")}</WorkspaceLink>
+                <WorkspaceLink to={`/projects/${projectId}/generation`}>{t("generationStudio")}</WorkspaceLink>
+                <WorkspaceLink to={`/projects/${projectId}/exports`}>{t("exports")}</WorkspaceLink>
+                <WorkspaceLink to={`/projects/${projectId}/versions`}>{t("versioning")}</WorkspaceLink>
+                <WorkspaceLink to={`/projects/${projectId}/warnings`}>{t("warnings")}</WorkspaceLink>
+                <WorkspaceLink to={`/projects/${projectId}/settings`}>{t("settings")}</WorkspaceLink>
               </div>
-
-              <div className="nav-note compact-note">
-                <strong>Workspace notes</strong>
-                <p>{t("workspaceDescription")}</p>
-              </div>
-            </>
+            </div>
           ) : null}
+
+          <div className="nav-note compact-note">
+            <strong>Workspace notes</strong>
+            <p>{t("workspaceDescription")}</p>
+          </div>
         </nav>
 
         <Separator className="sidebar-separator" />

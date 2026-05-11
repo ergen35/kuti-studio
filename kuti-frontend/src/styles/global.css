@@ -1259,3 +1259,132 @@ input[type="number"]::-webkit-inner-spin-button {
     width: 100%;
   }
 }
+
+
+/* Sidebar refinement */
+.sidebar {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow: auto;
+  gap: 0.9rem;
+}
+
+.sidebar-hero,
+.sidebar-project,
+.nav-links,
+.sidebar-footer {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.sidebar-hero h1 {
+  font-size: clamp(1.55rem, 2.2vw, 1.95rem);
+}
+
+.sidebar-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sidebar-project,
+.nav-note {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: var(--shadow-soft);
+}
+
+.nav-grid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nav-grid-project {
+  grid-template-columns: 1fr;
+}
+
+.compact-note p {
+  margin: 0;
+}
+
+.sidebar-footer {
+  margin-top: 0;
+}
+
+.sidebar-separator {
+  margin: 0.25rem 0;
+}
+
+/* Overlay primitives */
+.overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  align-items: stretch;
+}
+
+.overlay-root.is-sheet {
+  justify-items: end;
+}
+
+.overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(18, 22, 28, 0.46);
+  backdrop-filter: blur(4px);
+}
+
+.modal-panel,
+.sheet-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  overflow: auto;
+}
+
+.modal-panel {
+  width: min(760px, calc(100vw - 1.5rem));
+  max-height: min(90vh, 900px);
+  margin: auto;
+  border-radius: var(--radius-xl);
+}
+
+.modal-sm { width: min(460px, calc(100vw - 1.5rem)); }
+.modal-md { width: min(620px, calc(100vw - 1.5rem)); }
+.modal-lg { width: min(760px, calc(100vw - 1.5rem)); }
+.modal-xl { width: min(980px, calc(100vw - 1.5rem)); }
+
+.sheet-panel {
+  width: min(560px, calc(100vw - 1.25rem));
+  height: 100vh;
+  border-radius: 0;
+  border-left: 1px solid var(--line);
+}
+
+.overlay-header,
+.overlay-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.overlay-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.overlay-close {
+  flex-shrink: 0;
+}

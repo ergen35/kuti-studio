@@ -16,52 +16,28 @@ type OverlayPanelProps = {
   size?: "sm" | "md" | "lg" | "xl";
 };
 
-function useLockBody(open: boolean) {
+function useOverlayLifecycle(open: boolean, onOpenChange: (open: boolean) => void) {
   useEffect(() => {
     if (!open) return;
-
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        document.body.style.overflow = previous;
-      }
+      if (event.key === "Escape") onOpenChange(false);
     };
-
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previous;
     };
-  }, [open]);
+  }, [open, onOpenChange]);
 }
 
-export function OverlayPanel({
-  open,
-  onOpenChange,
-  title,
-  description,
-  children,
-  footer,
-  variant = "modal",
-  size = "lg",
-}: OverlayPanelProps) {
+export function OverlayPanel({ open, onOpenChange, title, description, children, footer, variant = "modal", size = "lg" }: OverlayPanelProps) {
   const titleId = useId();
   const descId = useId();
-
-  useLockBody(open);
-
-  if (!open || typeof document === "undefined") {
-    return null;
-  }
-
-  const panelClass = cn(
-    variant === "sheet" ? "sheet-panel" : "modal-panel",
-    size && variant === "modal" ? `modal-${size}` : undefined,
-  );
-
+  useOverlayLifecycle(open, onOpenChange);
+  if (!open || typeof document === "undefined") return null;
+  const panelClass = cn(variant === "sheet" ? "sheet-panel" : "modal-panel", size && variant === "modal" ? `modal-${size}` : undefined);
   return createPortal(
     <div className={cn("overlay-root", variant === "sheet" && "is-sheet")}>
       <button type="button" className="overlay-backdrop" aria-label={`Close ${title}`} onClick={() => onOpenChange(false)} />
@@ -72,9 +48,7 @@ export function OverlayPanel({
             <h3 id={titleId}>{title}</h3>
             {description ? <p className="muted" id={descId}>{description}</p> : null}
           </div>
-          <button type="button" className="button button-ghost overlay-close" onClick={() => onOpenChange(false)}>
-            Close
-          </button>
+          <button type="button" className="button button-ghost overlay-close" onClick={() => onOpenChange(false)}>Close</button>
         </header>
         <div className="overlay-body">{children}</div>
         {footer ? <footer className="overlay-footer">{footer}</footer> : null}
