@@ -91,21 +91,29 @@ button {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 296px minmax(0, 1fr);
 }
 
 .sidebar {
-  padding: 28px;
+  padding: 22px;
   border-right: 1px solid var(--line);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.14)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.16)),
     var(--surface);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(10px);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 1rem;
+  max-height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: auto;
 }
 
 .workspace {
   position: relative;
   padding: 28px 30px 40px;
+  overflow: hidden;
 }
 
 .workspace::before {
@@ -123,7 +131,8 @@ button {
   z-index: 1;
 }
 
-.brand-block,
+.sidebar-hero,
+.sidebar-project,
 .nav-links,
 .sidebar-footer,
 .page-stack,
@@ -141,7 +150,7 @@ button {
   gap: 1rem;
 }
 
-.brand-block h1,
+.sidebar-hero h1,
 .topbar h2,
 .hero h3,
 .card h4,
@@ -155,8 +164,8 @@ button {
   letter-spacing: -0.02em;
 }
 
-.brand-block h1 {
-  font-size: clamp(1.8rem, 3vw, 2.25rem);
+.sidebar-hero h1 {
+  font-size: clamp(1.6rem, 2.4vw, 2rem);
   line-height: 1.05;
 }
 
@@ -190,6 +199,7 @@ button {
   max-width: 62ch;
 }
 
+.sidebar-status-row,
 .brand-badges,
 .topbar-badges,
 .project-actions,
@@ -209,7 +219,8 @@ button {
 }
 
 .nav-links {
-  margin-top: 1.5rem;
+  margin-top: 0.25rem;
+  align-content: start;
 }
 
 .nav-section {
@@ -229,13 +240,30 @@ button {
   font-size: 0.72rem;
 }
 
+.sidebar-project,
 .nav-note {
   padding: 0.95rem 1rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.52);
   color: var(--muted);
   line-height: 1.5;
+  box-shadow: var(--shadow-soft);
+}
+
+.sidebar-project {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.compact-note p {
+  margin: 0;
+}
+
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
 }
 
 .nav-note strong {
@@ -258,10 +286,11 @@ button {
 .nav-link {
   display: block;
   width: 100%;
-  padding: 0.88rem 1rem;
+  padding: 0.72rem 0.82rem;
   border-color: var(--line);
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.66);
   box-shadow: var(--shadow-soft);
+  font-size: 0.95rem;
 }
 
 .nav-link:hover,
@@ -291,7 +320,7 @@ select:focus-visible {
 }
 
 .sidebar-footer {
-  margin-top: 1.5rem;
+  margin-top: 0.25rem;
 }
 
 .topbar {
@@ -445,7 +474,7 @@ select:focus-visible {
 }
 
 .sidebar-separator {
-  margin-top: 1.25rem;
+  margin-top: 0.25rem;
 }
 
 .project-actions {
@@ -1084,7 +1113,90 @@ input[type="number"]::-webkit-inner-spin-button {
   animation: rise 420ms ease both;
 }
 
+
+.overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+.overlay-root.is-sheet {
+  justify-items: end;
+}
+
+.overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(12, 16, 20, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.modal-panel,
+.sheet-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+
+.modal-panel {
+  width: min(760px, calc(100vw - 1.5rem));
+  max-height: min(90vh, 900px);
+  margin: auto;
+  border-radius: var(--radius-xl);
+  overflow: auto;
+}
+
+.modal-sm { width: min(460px, calc(100vw - 1.5rem)); }
+.modal-md { width: min(620px, calc(100vw - 1.5rem)); }
+.modal-lg { width: min(760px, calc(100vw - 1.5rem)); }
+.modal-xl { width: min(980px, calc(100vw - 1.5rem)); }
+
+.sheet-panel {
+  width: min(560px, calc(100vw - 1.25rem));
+  height: 100vh;
+  border-radius: 0;
+  border-left: 1px solid var(--line);
+  overflow: auto;
+}
+
+.overlay-header,
+.overlay-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.overlay-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.overlay-close {
+  flex-shrink: 0;
+}
+
 @media (max-width: 1180px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
   .character-layout,
   .story-layout,
   .asset-layout,

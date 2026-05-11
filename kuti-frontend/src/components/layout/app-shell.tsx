@@ -15,11 +15,7 @@ function navLinkClass({ isActive, isPending }: { isActive: boolean; isPending: b
   return cn("nav-link", isActive && "is-active", isPending && "is-pending");
 }
 
-function WorkspaceLink({
-  to,
-  children,
-  end = false,
-}: ComponentProps<typeof NavLink>) {
+function WorkspaceLink({ to, children, end = false }: ComponentProps<typeof NavLink>) {
   return (
     <NavLink to={to} end={end} className={navLinkClass}>
       {children}
@@ -36,85 +32,97 @@ export function AppShell() {
   const isMutating = useIsMutating();
   const isNavigating = navigation.state !== "idle";
   const isBusy = isNavigating || isFetching > 0 || isMutating > 0;
-  const workspaceLabel = projectId ? `${t("projectDashboard")} · ${projectId.slice(0, 8)}` : t("projectHub");
 
   return (
     <div className={`app-shell theme-${theme}`}>
       <aside className="sidebar">
-        <div className="brand-block">
-          <p className="eyebrow">Kuti Studio</p>
-          <h1>{t("appTagline")}</h1>
-          <p className="muted">A quiet editorial workbench for narrative production.</p>
-          <div className="brand-badges">
+        <header className="sidebar-hero">
+          <div>
+            <p className="eyebrow">Kuti Studio</p>
+            <h1>{t("appTagline")}</h1>
+            <p className="muted">Classic editorial workbench for narrative production.</p>
+          </div>
+          <div className="sidebar-status-row">
             <Badge variant="outline">Local</Badge>
             <Badge variant="secondary">FastAPI</Badge>
             <Badge variant="outline">SQLite</Badge>
           </div>
-        </div>
+        </header>
+
+        <section className="sidebar-project">
+          <div className="section-head">
+            <div>
+              <p className="nav-label">Workspace</p>
+              <h4>{projectId ? projectId.slice(0, 8) : t("projectHub")}</h4>
+            </div>
+            {projectId ? (
+              <Link to={`/projects/${projectId}`} className="button button-ghost align-start">
+                Open
+              </Link>
+            ) : null}
+          </div>
+          <p className="muted">{projectId ? t("workspaceDescription") : "Browse projects, then enter a project workspace."}</p>
+        </section>
 
         <nav className="nav-links" aria-label={t("primaryNavigation")}>
           <div className="nav-section">
             <p className="nav-label">Index</p>
-            <WorkspaceLink to="/" end>
-              {t("projectHub")}
-            </WorkspaceLink>
+            <div className="nav-grid">
+              <WorkspaceLink to="/" end>
+                {t("projectHub")}
+              </WorkspaceLink>
+            </div>
           </div>
 
           {projectId ? (
             <>
               <div className="nav-section">
                 <p className="nav-label">Project</p>
-                <WorkspaceLink to={`/projects/${projectId}`} end>
-                  {t("projectDashboard")}
-                </WorkspaceLink>
-                <WorkspaceLink to={`/projects/${projectId}/story`}>
-                  {t("storyline")}
-                </WorkspaceLink>
-                <WorkspaceLink to={`/projects/${projectId}/characters`}>
-                  Characters
-                </WorkspaceLink>
-                <WorkspaceLink to={`/projects/${projectId}/assets`}>
-                  {t("assetsLibrary")}
-                </WorkspaceLink>
-                <WorkspaceLink to={`/projects/${projectId}/generation`}>
-                  {t("generationStudio")}
-                </WorkspaceLink>
-                <WorkspaceLink to={`/projects/${projectId}/exports`}>
-                  {t("exports")}
-                </WorkspaceLink>
-                <WorkspaceLink to={`/projects/${projectId}/versions`}>
-                  {t("versioning")}
-                </WorkspaceLink>
-                <WorkspaceLink to={`/projects/${projectId}/warnings`}>
-                  {t("warnings")}
-                </WorkspaceLink>
-                <WorkspaceLink to={`/projects/${projectId}/settings`}>
-                  {t("settings")}
-                </WorkspaceLink>
+                <div className="nav-grid">
+                  <WorkspaceLink to={`/projects/${projectId}`} end>
+                    {t("projectDashboard")}
+                  </WorkspaceLink>
+                  <WorkspaceLink to={`/projects/${projectId}/story`}>
+                    {t("storyline")}
+                  </WorkspaceLink>
+                  <WorkspaceLink to={`/projects/${projectId}/characters`}>
+                    Characters
+                  </WorkspaceLink>
+                  <WorkspaceLink to={`/projects/${projectId}/assets`}>
+                    {t("assetsLibrary")}
+                  </WorkspaceLink>
+                  <WorkspaceLink to={`/projects/${projectId}/generation`}>
+                    {t("generationStudio")}
+                  </WorkspaceLink>
+                  <WorkspaceLink to={`/projects/${projectId}/exports`}>
+                    {t("exports")}
+                  </WorkspaceLink>
+                  <WorkspaceLink to={`/projects/${projectId}/versions`}>
+                    {t("versioning")}
+                  </WorkspaceLink>
+                  <WorkspaceLink to={`/projects/${projectId}/warnings`}>
+                    {t("warnings")}
+                  </WorkspaceLink>
+                  <WorkspaceLink to={`/projects/${projectId}/settings`}>
+                    {t("settings")}
+                  </WorkspaceLink>
+                </div>
               </div>
 
-              <div className="nav-note">
+              <div className="nav-note compact-note">
                 <strong>Workspace notes</strong>
-                <div className="divider" />
                 <p>{t("workspaceDescription")}</p>
-                <span className="monospace-block">Project ID: {projectId}</span>
               </div>
             </>
-          ) : (
-            <div className="nav-note">
-              <strong>Workspace notes</strong>
-              <div className="divider" />
-              <p>{t("workspaceDescription")}</p>
-            </div>
-          )}
+          ) : null}
         </nav>
 
         <Separator className="sidebar-separator" />
 
-        <div className="sidebar-footer">
+        <footer className="sidebar-footer">
           <ThemeToggle />
           <LocaleToggle />
-        </div>
+        </footer>
       </aside>
 
       <main className="workspace">
@@ -123,7 +131,7 @@ export function AppShell() {
         <header className="topbar">
           <div className="topbar-copy">
             <p className="eyebrow">{t("currentWorkspace")}</p>
-            <h2>{workspaceLabel}</h2>
+            <h2>{projectId ? `${t("projectDashboard")} · ${projectId.slice(0, 8)}` : t("projectHub")}</h2>
             <p className="muted">{t("workspaceDescription")}</p>
           </div>
           <div className="topbar-badges">
