@@ -42,19 +42,19 @@ export function AppShell() {
     <div className={`app-shell theme-${theme}`}>
       <aside className="sidebar">
         <div className="brand-block">
-          <p className="eyebrow">{t("appTitle")}</p>
+          <p className="eyebrow">Kuti Studio</p>
           <h1>{t("appTagline")}</h1>
-          <p className="muted">{t("appDescription")}</p>
+          <p className="muted">A quiet editorial workbench for narrative production.</p>
           <div className="brand-badges">
-            <Badge>Local-first</Badge>
+            <Badge variant="outline">Local</Badge>
             <Badge variant="secondary">FastAPI</Badge>
-            <Badge variant="outline">shadcn/ui</Badge>
+            <Badge variant="outline">SQLite</Badge>
           </div>
         </div>
 
         <nav className="nav-links" aria-label={t("primaryNavigation")}>
           <div className="nav-section">
-            <p className="nav-label">Workspace</p>
+            <p className="nav-label">Index</p>
             <WorkspaceLink to="/" end>
               {t("projectHub")}
             </WorkspaceLink>
@@ -94,13 +94,18 @@ export function AppShell() {
               </div>
 
               <div className="nav-note">
-                {t("workspaceDescription")}
+                <strong>Workspace notes</strong>
                 <div className="divider" />
+                <p>{t("workspaceDescription")}</p>
                 <span className="monospace-block">Project ID: {projectId}</span>
               </div>
             </>
           ) : (
-            <div className="nav-note">{t("workspaceDescription")}</div>
+            <div className="nav-note">
+              <strong>Workspace notes</strong>
+              <div className="divider" />
+              <p>{t("workspaceDescription")}</p>
+            </div>
           )}
         </nav>
 
